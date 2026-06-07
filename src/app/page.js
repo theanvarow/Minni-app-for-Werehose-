@@ -519,9 +519,9 @@ export default function Home() {
                     <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 truncate">
                       <span className="block text-neutral-400 text-xs font-bold uppercase">Штрихкод</span>
                       <span className="font-mono text-base font-bold text-white block mt-0.5 truncate">{currentItem.barcode}</span>
-                      {currentItem.barcode && (
+                      {currentItem.name && (
                         <a 
-                          href={`https://uzum.uz/uz/search?query=${currentItem.barcode}`} 
+                          href={`https://uzum.uz/uz/search?query=${encodeURIComponent(currentItem.name)}`} 
                           target="_blank" 
                           rel="noopener noreferrer" 
                           className="text-[11px] text-blue-400 hover:text-blue-300 underline block mt-0.5"
