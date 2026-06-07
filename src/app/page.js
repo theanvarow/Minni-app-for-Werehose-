@@ -40,7 +40,8 @@ const playSound = (type) => {
 };
 
 export default function Home() {
-  const [itemQueue, setItemQueue] = useState([]);
+  const [rawItems, setRawItems] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   
@@ -54,6 +55,11 @@ export default function Home() {
   const [shiftInput, setShiftInput] = useState("");
   const [showPlacementConfirm, setShowPlacementConfirm] = useState(false);
   const [selectedFloor, setSelectedFloor] = useState("");
+
+  const itemQueue = rawItems.filter(item => {
+    if (!selectedCategory || selectedCategory === "Все") return true;
+    return item.category === selectedCategory;
+  });
 
   // PWA states
   const [isStandalone, setIsStandalone] = useState(false);
@@ -90,12 +96,16 @@ export default function Home() {
     const storedName = localStorage.getItem("userName");
     const storedShift = localStorage.getItem("shift");
     const storedFloor = localStorage.getItem("selectedFloor");
+    const storedCategory = localStorage.getItem("selectedCategory");
     if (storedName) {
       setUserName(storedName);
       setShift(storedShift || "");
       setIsLoggedIn(true);
       if (storedFloor) {
         setSelectedFloor(storedFloor);
+        if (storedCategory) {
+          setSelectedCategory(storedCategory);
+        }
         fetchItems(false, storedFloor);
       } else {
         setLoading(false); // Show floor selection screen
@@ -128,10 +138,12 @@ export default function Home() {
     localStorage.removeItem("userName");
     localStorage.removeItem("shift");
     localStorage.removeItem("selectedFloor");
+    localStorage.removeItem("selectedCategory");
     setIsLoggedIn(false);
     setUserName("");
     setShift("");
-    setItemQueue([]);
+    setRawItems([]);
+    setSelectedCategory("");
     setShowPlacementConfirm(false);
     setSelectedFloor("");
   };
@@ -139,7 +151,9 @@ export default function Home() {
   const handleFloorChange = (newFloor) => {
     localStorage.setItem("selectedFloor", newFloor);
     setSelectedFloor(newFloor);
-    setItemQueue([]);
+    setSelectedCategory("");
+    localStorage.removeItem("selectedCategory");
+    setRawItems([]);
     verifiedRowsRef.current = new Set();
     if (newFloor) {
       fetchItems(false, newFloor);
@@ -171,11 +185,11 @@ export default function Home() {
         }
 
         if (newItems.length > 0) {
-          const existingRowIndexes = new Set(itemQueue.map(i => i.rowIndex));
+          const existingRowIndexes = new Set(rawItems.map(i => i.rowIndex));
           const filteredNew = newItems.filter(i => !existingRowIndexes.has(i.rowIndex) && !verifiedRowsRef.current.has(i.rowIndex));
           
           if (filteredNew.length > 0) {
-            setItemQueue(prev => [...prev, ...filteredNew]);
+            setRawItems(prev => [...prev, ...filteredNew]);
           } else {
             // We received items, but they were ALL already verified (backend is slow).
             // We should poll again in 1.5 seconds if we are in background mode.
@@ -215,7 +229,7 @@ export default function Home() {
     verifiedRowsRef.current.add(currentItem.rowIndex);
 
     // OPTIMISTIC UI: Immediately remove the item from the queue to show the next one
-    setItemQueue(prevQueue => prevQueue.slice(1));
+    setRawItems(prevQueue => prevQueue.filter(i => i.rowIndex !== currentItem.rowIndex));
     setShowPlacementConfirm(false);
 
     // If queue is getting low (< 3), fetch more in the background
@@ -396,6 +410,101 @@ export default function Home() {
     );
   }
 
+  if (isLoggedIn && selectedFloor && !selectedCategory) {
+    const availableCategories = Array.from(new Set(rawItems.map(item => item.category))).filter(Boolean);
+
+    return (
+      <>
+        <div className="w-screen h-[100dvh] bg-neutral-900 text-white p-4 font-sans flex items-center justify-center overflow-hidden">
+          <div className="w-full max-w-md bg-neutral-800 rounded-2xl shadow-2xl p-6 border border-neutral-700 flex flex-col">
+            
+            {/* Header: Title and Subtitle */}
+            <div className="mb-2">
+              <h1 className="text-2xl font-black text-amber-400">Выберите категорию</h1>
+              <p className="text-neutral-400 text-xs mt-0.5">Укажите категорию товаров для проверки</p>
+            </div>
+
+            {/* Selected Floor and Employee details */}
+            <div className="mb-4 p-3 bg-neutral-700/30 border border-neutral-700/50 rounded-xl flex justify-between items-center text-xs">
+              <div>
+                <span className="text-neutral-400 text-[9px] uppercase font-bold block">Сотрудник</span>
+                <span className="font-bold text-white truncate max-w-[150px] block">{userName} <span className="text-blue-400 font-semibold">({shift} смена)</span></span>
+                <span className="text-[10px] text-amber-400 font-semibold block mt-0.5">Этаж: {selectedFloor}</span>
+              </div>
+              <button 
+                onClick={() => {
+                  handleFloorChange("");
+                  playSound("click");
+                }} 
+                className="px-3.5 py-1.5 bg-neutral-700 hover:bg-neutral-600 text-neutral-200 rounded-lg text-xs font-bold transition active:scale-95 border border-neutral-600"
+              >
+                Назад
+              </button>
+            </div>
+
+            {/* Loading state or Category buttons */}
+            {loading ? (
+              <div className="py-8 flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500 mb-2"></div>
+                <p className="text-xs text-neutral-400">Загрузка списка категорий...</p>
+              </div>
+            ) : rawItems.length === 0 ? (
+              <div className="py-6 text-center">
+                <p className="text-sm text-green-400 font-bold">✅ Все товары на этом этаже проверены!</p>
+                <button 
+                  onClick={() => fetchItems()}
+                  className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-sm transition active:scale-95"
+                >
+                  Обновить
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+                {/* Button for All Categories */}
+                <button
+                  onClick={() => {
+                    localStorage.setItem("selectedCategory", "Все");
+                    setSelectedCategory("Все");
+                    playSound("click");
+                  }}
+                  className="w-full py-3 px-4 rounded-xl font-bold text-sm text-left transition-all active:scale-95 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 border border-blue-500/30 shadow-sm flex justify-between items-center"
+                >
+                  <span>Все категории</span>
+                  <span className="bg-blue-500/20 px-2 py-0.5 rounded text-[10px] text-blue-300 font-mono">
+                    {rawItems.length} шт
+                  </span>
+                </button>
+
+                {/* Individual Category buttons */}
+                {availableCategories.map((catName) => {
+                  const count = rawItems.filter(item => item.category === catName).length;
+                  return (
+                    <button
+                      key={catName}
+                      onClick={() => {
+                        localStorage.setItem("selectedCategory", catName);
+                        setSelectedCategory(catName);
+                        playSound("click");
+                      }}
+                      className="w-full py-3 px-4 rounded-xl font-bold text-sm text-left transition-all active:scale-95 bg-neutral-700 text-neutral-200 hover:bg-amber-500 hover:text-neutral-900 border border-neutral-600 hover:border-amber-400 shadow-sm flex justify-between items-center"
+                    >
+                      <span>{catName}</span>
+                      <span className="bg-neutral-800 px-2 py-0.5 rounded text-[10px] text-neutral-400 font-mono">
+                        {count} шт
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+          </div>
+        </div>
+        {renderOrientationOverlay()}
+      </>
+    );
+  }
+
   const currentItem = itemQueue.length > 0 ? itemQueue[0] : null;
 
   return (
@@ -414,6 +523,20 @@ export default function Home() {
               <button 
                 onClick={() => {
                   handleFloorChange("");
+                  playSound("click");
+                }}
+                className="text-[11px] bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 font-bold px-2 py-0.5 rounded border border-blue-500/30 ml-2 transition active:scale-95"
+              >
+                Сменить
+              </button>
+            </span>
+            <span className="text-neutral-600">|</span>
+            <span className="flex items-center gap-1.5">
+              Категория: <span className="font-bold text-amber-400">{selectedCategory}</span>
+              <button 
+                onClick={() => {
+                  setSelectedCategory("");
+                  localStorage.removeItem("selectedCategory");
                   playSound("click");
                 }}
                 className="text-[11px] bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 font-bold px-2 py-0.5 rounded border border-blue-500/30 ml-2 transition active:scale-95"
