@@ -55,10 +55,45 @@ export default function Home() {
   const [showPlacementConfirm, setShowPlacementConfirm] = useState(false);
   const [selectedFloor, setSelectedFloor] = useState("");
 
+  const [productImage, setProductImage] = useState("");
+  const [loadingImage, setLoadingImage] = useState(false);
+
   // PWA states
   const [isStandalone, setIsStandalone] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [isInAppBrowser, setIsInAppBrowser] = useState(false);
+
+  const currentItem = itemQueue.length > 0 ? itemQueue[0] : null;
+
+  useEffect(() => {
+    if (!currentItem) {
+      setProductImage("");
+      return;
+    }
+
+    if (currentItem.image) {
+      setProductImage(currentItem.image);
+      return;
+    }
+
+    if (currentItem.productId) {
+      setLoadingImage(true);
+      setProductImage("");
+      fetch(`https://api.uzum.uz/api/v2/product/${currentItem.productId}`)
+        .then(res => res.json())
+        .then(resData => {
+          if (resData.success && resData.payload && resData.payload.data && resData.payload.data.photos && resData.payload.data.photos.length > 0) {
+            const photoObj = resData.payload.data.photos[0].photo;
+            const imgUrl = photoObj["480"]?.high || photoObj["240"]?.high || "";
+            setProductImage(imgUrl);
+          }
+        })
+        .catch(err => console.error("Error fetching product image:", err))
+        .finally(() => setLoadingImage(false));
+    } else {
+      setProductImage("");
+    }
+  }, [currentItem]);
 
   useEffect(() => {
     // Register service worker
@@ -396,8 +431,6 @@ export default function Home() {
     );
   }
 
-  const currentItem = itemQueue.length > 0 ? itemQueue[0] : null;
-
   return (
     <>
       <div className="w-screen h-[100dvh] bg-neutral-900 text-white p-3 font-sans flex flex-col overflow-hidden select-none">
@@ -467,34 +500,66 @@ export default function Home() {
 
           {currentItem && !error && (
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              {/* Top part: Item Info (Larger fonts, scrollable name) */}
-              <div className="flex-1 bg-neutral-800 rounded-xl p-3.5 border border-neutral-700 flex flex-col justify-between overflow-hidden min-h-0 mb-2.5 shadow-lg">
-                <div className="flex justify-between items-center shrink-0 border-b border-neutral-700/50 pb-2">
-                  <div>
-                    <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider">Ячейка</p>
-                    <h1 className="text-4xl md:text-5xl font-black text-amber-400 leading-none truncate mt-0.5">{currentItem.location}</h1>
+              {/* Top part: Item Info (Larger fonts, scrollable name, optional image) */}
+              <div className="flex-1 flex gap-3 min-h-0 overflow-hidden mb-2.5">
+                {/* Left details */}
+                <div className="flex-1 bg-neutral-800 rounded-xl p-3.5 border border-neutral-700 flex flex-col justify-between overflow-hidden shadow-lg">
+                  <div className="flex justify-between items-center shrink-0 border-b border-neutral-700/50 pb-2">
+                    <div>
+                      <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider">Ячейка</p>
+                      <h1 className="text-4xl md:text-5xl font-black text-amber-400 leading-none truncate mt-0.5">{currentItem.location}</h1>
+                    </div>
+                    <div className="bg-blue-500/10 rounded-lg px-3.5 py-1 border border-blue-500/20 text-center shrink-0">
+                      <span className="block text-neutral-400 text-[10px] font-bold uppercase">Кол-во</span>
+                      <span className="text-xl font-black text-blue-400 block mt-0.5">{currentItem.qty} шт</span>
+                    </div>
                   </div>
-                  <div className="bg-blue-500/10 rounded-lg px-3.5 py-1 border border-blue-500/20 text-center shrink-0">
-                    <span className="block text-neutral-400 text-[10px] font-bold uppercase">Кол-во</span>
-                    <span className="text-xl font-black text-blue-400 block mt-0.5">{currentItem.qty} шт</span>
+
+                  <div className="grid grid-cols-2 gap-3 my-2 shrink-0">
+                    <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 truncate">
+                      <span className="block text-neutral-400 text-xs font-bold uppercase">Штрихкод</span>
+                      <span className="font-mono text-base font-bold text-white block mt-0.5 truncate">{currentItem.barcode}</span>
+                      {currentItem.barcode && (
+                        <a 
+                          href={`https://uzum.uz/uz/search?query=${currentItem.barcode}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-[11px] text-blue-400 hover:text-blue-300 underline block mt-0.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          🔍 Поиск на Uzum
+                        </a>
+                      )}
+                    </div>
+                    <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 truncate">
+                      <span className="block text-neutral-400 text-xs font-bold uppercase">Категория</span>
+                      <span className="text-base font-bold text-white block mt-0.5 truncate">{currentItem.category}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-neutral-900/40 rounded-xl p-2.5 border border-neutral-700/30 flex-1 overflow-y-auto min-h-0">
+                    <span className="block text-neutral-400 text-xs font-bold uppercase tracking-wider mb-1">Наименование товара</span>
+                    <p className="text-base md:text-lg font-bold text-neutral-100 leading-snug break-words">{currentItem.name}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 my-2 shrink-0">
-                  <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 truncate">
-                    <span className="block text-neutral-400 text-xs font-bold uppercase">Штрихкод</span>
-                    <span className="font-mono text-base font-bold text-white block mt-0.5 truncate">{currentItem.barcode}</span>
+                {/* Right product image */}
+                {(productImage || loadingImage) && (
+                  <div className="w-[30%] bg-neutral-800 rounded-xl border border-neutral-700 flex items-center justify-center overflow-hidden shadow-lg p-1.5 relative shrink-0">
+                    {loadingImage ? (
+                      <div className="animate-pulse flex flex-col items-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-amber-400 mb-2"></div>
+                        <span className="text-[10px] text-neutral-400">Фото...</span>
+                      </div>
+                    ) : (
+                      <img 
+                        src={productImage} 
+                        alt="Product" 
+                        className="max-w-full max-h-full object-contain rounded-lg"
+                      />
+                    )}
                   </div>
-                  <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 truncate">
-                    <span className="block text-neutral-400 text-xs font-bold uppercase">Категория</span>
-                    <span className="text-base font-bold text-white block mt-0.5 truncate">{currentItem.category}</span>
-                  </div>
-                </div>
-
-                <div className="bg-neutral-900/40 rounded-xl p-2.5 border border-neutral-700/30 flex-1 overflow-y-auto min-h-0">
-                  <span className="block text-neutral-400 text-xs font-bold uppercase tracking-wider mb-1">Наименование товара</span>
-                  <p className="text-base md:text-lg font-bold text-neutral-100 leading-snug break-words">{currentItem.name}</p>
-                </div>
+                )}
               </div>
 
               {/* Bottom part: Action buttons (Compact row but with large buttons) */}
