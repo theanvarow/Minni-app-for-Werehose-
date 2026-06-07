@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+html, body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  overflow: hidden;
+  height: 100dvh;
+  width: 100vw;
+  position: fixed;
+  margin: 0;
+  padding: 0;
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: auto;
+  user-select: none;
+}
+
+@keyframes rotate-phone {
+  0%, 10% {
+    transform: rotate(0deg);
+  }
+  40%, 60% {
+    transform: rotate(-90deg);
+  }
+  90%, 100% {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-rotate-phone {
+  animation: rotate-phone 2.5s ease-in-out infinite;
+}
+
