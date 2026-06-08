@@ -58,23 +58,12 @@ export default function Home() {
   const [productImage, setProductImage] = useState("");
   const [loadingImage, setLoadingImage] = useState(false);
 
-  const [isScanned, setIsScanned] = useState(false);
-
   // PWA states
   const [isStandalone, setIsStandalone] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [isInAppBrowser, setIsInAppBrowser] = useState(false);
 
   const currentItem = itemQueue.length > 0 ? itemQueue[0] : null;
-
-  // Scanner barcode input buffer
-  const barcodeBuffer = useRef("");
-  const lastKeyTime = useRef(0);
-
-  useEffect(() => {
-    setIsScanned(false);
-    setShowPlacementConfirm(false);
-  }, [currentItem]);
 
   useEffect(() => {
     if (!currentItem) {
@@ -105,59 +94,6 @@ export default function Home() {
       setProductImage("");
     }
   }, [currentItem]);
-
-  useEffect(() => {
-    if (!currentItem || !isLoggedIn) return;
-
-    const handleKeyDown = (e) => {
-      // Ignore key events if user is typing in form inputs (like Login screen or manual input modal)
-      if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
-        return;
-      }
-
-      const currentTime = Date.now();
-      
-      // If time since last key is more than 100ms, reset buffer (new scan started)
-      if (currentTime - lastKeyTime.current > 100) {
-        barcodeBuffer.current = "";
-      }
-      
-      lastKeyTime.current = currentTime;
-
-      if (e.key === "Enter") {
-        const scanned = barcodeBuffer.current.trim();
-        if (scanned) {
-          processScannedBarcode(scanned);
-        }
-        barcodeBuffer.current = "";
-      } else if (e.key.length === 1) {
-        barcodeBuffer.current += e.key;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [currentItem, isLoggedIn]);
-
-  const processScannedBarcode = (scanned) => {
-    if (!currentItem) return;
-    
-    // Clean barcodes to ignore leading zeros or spaces for robust comparison
-    const cleanScanned = scanned.replace(/\D/g, "");
-    const cleanCurrent = currentItem.barcode.replace(/\D/g, "");
-
-    if (cleanScanned === cleanCurrent) {
-      playSound("success");
-      setIsScanned(true);
-      setShowPlacementConfirm(true); // Automatically show dimension confirmation
-    } else {
-      playSound("warning");
-      alert(`Неверный штрихкод! Сканирован: ${scanned}, Требуется: ${currentItem.barcode}`);
-    }
-  };
-
 
   useEffect(() => {
     // Register service worker
@@ -322,9 +258,6 @@ export default function Home() {
       fetchItems(true, selectedFloor);
     }
 
-    const now = new Date();
-    const formattedTimestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
-
     try {
       await fetch("/api/inventory", {
         method: "POST",
@@ -334,8 +267,7 @@ export default function Home() {
           status, 
           userName, 
           shift: `${shift} смена`, 
-          placementCorrect,
-          timestamp: formattedTimestamp
+          placementCorrect
         }),
       });
       // We don't need to await or do anything here. If it succeeds, great.
@@ -577,20 +509,6 @@ export default function Home() {
                       <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider">Ячейка</p>
                       <h1 className="text-4xl md:text-5xl font-black text-amber-400 leading-none truncate mt-0.5">{currentItem.location}</h1>
                     </div>
-
-                    {/* Barcode scanning status indicator */}
-                    <div className="flex items-center gap-2">
-                      {isScanned ? (
-                        <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-3 py-1.5 rounded-lg font-black uppercase tracking-wider">
-                          🟢 Сканирован
-                        </span>
-                      ) : (
-                        <span className="text-[11px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider animate-pulse">
-                          🔴 Ожидание сканирования
-                        </span>
-                      )}
-                    </div>
-
                     <div className="bg-blue-500/10 rounded-lg px-3.5 py-1 border border-blue-500/20 text-center shrink-0">
                       <span className="block text-neutral-400 text-[10px] font-bold uppercase">Кол-во</span>
                       <span className="text-xl font-black text-blue-400 block mt-0.5">{currentItem.qty} шт</span>
@@ -677,26 +595,16 @@ export default function Home() {
                   </div>
                 ) : (
                   <>
-                    {isScanned ? (
-                      <button
-                        onClick={() => {
-                          setShowPlacementConfirm(true);
-                          playSound("click");
-                        }}
-                        className="flex-1 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 bg-green-600 hover:bg-green-500 text-white shadow-md font-black text-base uppercase tracking-wider h-full"
-                      >
-                        <span className="text-lg">✅</span>
-                        <span>Подтвердить</span>
-                      </button>
-                    ) : (
-                      <button
-                        disabled={true}
-                        className="flex-1 rounded-xl flex items-center justify-center gap-2 bg-neutral-700 text-neutral-400 cursor-not-allowed font-black text-base uppercase tracking-wider h-full border border-neutral-600"
-                      >
-                        <span className="text-lg">🔒</span>
-                        <span>Сканируйте штрихкод</span>
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        setShowPlacementConfirm(true);
+                        playSound("click");
+                      }}
+                      className="flex-1 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 bg-green-600 hover:bg-green-500 text-white shadow-md font-black text-base uppercase tracking-wider h-full"
+                    >
+                      <span className="text-lg">✅</span>
+                      <span>Подтвердить</span>
+                    </button>
                     
                     <button
                       onClick={() => handleUpdate("Отсутствует")}
