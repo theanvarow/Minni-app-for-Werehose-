@@ -59,8 +59,6 @@ export default function Home() {
   const [loadingImage, setLoadingImage] = useState(false);
 
   const [isScanned, setIsScanned] = useState(false);
-  const [showManualInput, setShowManualInput] = useState(false);
-  const [manualBarcode, setManualBarcode] = useState("");
 
   // PWA states
   const [isStandalone, setIsStandalone] = useState(false);
@@ -76,8 +74,6 @@ export default function Home() {
   useEffect(() => {
     setIsScanned(false);
     setShowPlacementConfirm(false);
-    setShowManualInput(false);
-    setManualBarcode("");
   }, [currentItem]);
 
   useEffect(() => {
@@ -162,12 +158,6 @@ export default function Home() {
     }
   };
 
-  const handleManualSubmit = () => {
-    if (!manualBarcode.trim()) return;
-    processScannedBarcode(manualBarcode.trim());
-    setShowManualInput(false);
-    setManualBarcode("");
-  };
 
   useEffect(() => {
     // Register service worker
@@ -591,20 +581,9 @@ export default function Home() {
                           🟢 Сканирован
                         </span>
                       ) : (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => {
-                              setShowManualInput(true);
-                              playSound("click");
-                            }}
-                            className="text-[11px] bg-neutral-700 hover:bg-neutral-600 text-amber-400 border border-neutral-600 rounded-lg px-2.5 py-1.5 font-bold transition active:scale-95"
-                          >
-                            Ввод вручную
-                          </button>
-                          <span className="text-[11px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider animate-pulse">
-                            🔴 Ожидание сканирования
-                          </span>
-                        </div>
+                        <span className="text-[11px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider animate-pulse">
+                          🔴 Ожидание сканирования
+                        </span>
                       )}
                     </div>
 
@@ -729,45 +708,6 @@ export default function Home() {
           )}
         </div>
       </div>
-      {showManualInput && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-neutral-800 rounded-2xl border border-neutral-700 p-5 shadow-2xl text-left">
-            <h3 className="text-lg font-bold text-white mb-2">Ручной ввод штрихкода</h3>
-            <p className="text-xs text-neutral-400 mb-4">Введите штрихкод товара для подтверждения:</p>
-            <input
-              type="text"
-              value={manualBarcode}
-              onChange={(e) => setManualBarcode(e.target.value)}
-              placeholder="Например: 1000101620748"
-              className="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-xl text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleManualSubmit();
-                }
-              }}
-            />
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => {
-                  setShowManualInput(false);
-                  setManualBarcode("");
-                  playSound("click");
-                }}
-                className="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded-xl text-xs font-bold transition"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleManualSubmit}
-                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-900 rounded-xl text-xs font-black transition"
-              >
-                Ввести
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {renderOrientationOverlay()}
     </>
   );
