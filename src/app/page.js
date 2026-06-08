@@ -322,6 +322,9 @@ export default function Home() {
       fetchItems(true, selectedFloor);
     }
 
+    const now = new Date();
+    const formattedTimestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+
     try {
       await fetch("/api/inventory", {
         method: "POST",
@@ -331,7 +334,8 @@ export default function Home() {
           status, 
           userName, 
           shift: `${shift} смена`, 
-          placementCorrect
+          placementCorrect,
+          timestamp: formattedTimestamp
         }),
       });
       // We don't need to await or do anything here. If it succeeds, great.
