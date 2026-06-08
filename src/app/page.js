@@ -58,12 +58,27 @@ export default function Home() {
   const [productImage, setProductImage] = useState("");
   const [loadingImage, setLoadingImage] = useState(false);
 
+  const [isScanned, setIsScanned] = useState(false);
+  const [showManualInput, setShowManualInput] = useState(false);
+  const [manualBarcode, setManualBarcode] = useState("");
+
   // PWA states
   const [isStandalone, setIsStandalone] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [isInAppBrowser, setIsInAppBrowser] = useState(false);
 
   const currentItem = itemQueue.length > 0 ? itemQueue[0] : null;
+
+  // Scanner barcode input buffer
+  const barcodeBuffer = useRef("");
+  const lastKeyTime = useRef(0);
+
+  useEffect(() => {
+    setIsScanned(false);
+    setShowPlacementConfirm(false);
+    setShowManualInput(false);
+    setManualBarcode("");
+  }, [currentItem]);
 
   useEffect(() => {
     if (!currentItem) {
@@ -94,6 +109,65 @@ export default function Home() {
       setProductImage("");
     }
   }, [currentItem]);
+
+  useEffect(() => {
+    if (!currentItem || !isLoggedIn) return;
+
+    const handleKeyDown = (e) => {
+      // Ignore key events if user is typing in form inputs (like Login screen or manual input modal)
+      if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
+        return;
+      }
+
+      const currentTime = Date.now();
+      
+      // If time since last key is more than 100ms, reset buffer (new scan started)
+      if (currentTime - lastKeyTime.current > 100) {
+        barcodeBuffer.current = "";
+      }
+      
+      lastKeyTime.current = currentTime;
+
+      if (e.key === "Enter") {
+        const scanned = barcodeBuffer.current.trim();
+        if (scanned) {
+          processScannedBarcode(scanned);
+        }
+        barcodeBuffer.current = "";
+      } else if (e.key.length === 1) {
+        barcodeBuffer.current += e.key;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [currentItem, isLoggedIn]);
+
+  const processScannedBarcode = (scanned) => {
+    if (!currentItem) return;
+    
+    // Clean barcodes to ignore leading zeros or spaces for robust comparison
+    const cleanScanned = scanned.replace(/\D/g, "");
+    const cleanCurrent = currentItem.barcode.replace(/\D/g, "");
+
+    if (cleanScanned === cleanCurrent) {
+      playSound("success");
+      setIsScanned(true);
+      setShowPlacementConfirm(true); // Automatically show dimension confirmation
+    } else {
+      playSound("warning");
+      alert(`Неверный штрихкод! Сканирован: ${scanned}, Требуется: ${currentItem.barcode}`);
+    }
+  };
+
+  const handleManualSubmit = () => {
+    if (!manualBarcode.trim()) return;
+    processScannedBarcode(manualBarcode.trim());
+    setShowManualInput(false);
+    setManualBarcode("");
+  };
 
   useEffect(() => {
     // Register service worker
@@ -509,6 +583,31 @@ export default function Home() {
                       <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider">Ячейка</p>
                       <h1 className="text-4xl md:text-5xl font-black text-amber-400 leading-none truncate mt-0.5">{currentItem.location}</h1>
                     </div>
+
+                    {/* Barcode scanning status indicator */}
+                    <div className="flex items-center gap-2">
+                      {isScanned ? (
+                        <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-3 py-1.5 rounded-lg font-black uppercase tracking-wider">
+                          🟢 Сканирован
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => {
+                              setShowManualInput(true);
+                              playSound("click");
+                            }}
+                            className="text-[11px] bg-neutral-700 hover:bg-neutral-600 text-amber-400 border border-neutral-600 rounded-lg px-2.5 py-1.5 font-bold transition active:scale-95"
+                          >
+                            Ввод вручную
+                          </button>
+                          <span className="text-[11px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider animate-pulse">
+                            🔴 Ожидание сканирования
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="bg-blue-500/10 rounded-lg px-3.5 py-1 border border-blue-500/20 text-center shrink-0">
                       <span className="block text-neutral-400 text-[10px] font-bold uppercase">Кол-во</span>
                       <span className="text-xl font-black text-blue-400 block mt-0.5">{currentItem.qty} шт</span>
@@ -595,16 +694,26 @@ export default function Home() {
                   </div>
                 ) : (
                   <>
-                    <button
-                      onClick={() => {
-                        setShowPlacementConfirm(true);
-                        playSound("click");
-                      }}
-                      className="flex-1 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 bg-green-600 hover:bg-green-500 text-white shadow-md font-black text-base uppercase tracking-wider h-full"
-                    >
-                      <span className="text-lg">✅</span>
-                      <span>Подтвердить</span>
-                    </button>
+                    {isScanned ? (
+                      <button
+                        onClick={() => {
+                          setShowPlacementConfirm(true);
+                          playSound("click");
+                        }}
+                        className="flex-1 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 bg-green-600 hover:bg-green-500 text-white shadow-md font-black text-base uppercase tracking-wider h-full"
+                      >
+                        <span className="text-lg">✅</span>
+                        <span>Подтвердить</span>
+                      </button>
+                    ) : (
+                      <button
+                        disabled={true}
+                        className="flex-1 rounded-xl flex items-center justify-center gap-2 bg-neutral-700 text-neutral-400 cursor-not-allowed font-black text-base uppercase tracking-wider h-full border border-neutral-600"
+                      >
+                        <span className="text-lg">🔒</span>
+                        <span>Сканируйте штрихкод</span>
+                      </button>
+                    )}
                     
                     <button
                       onClick={() => handleUpdate("Отсутствует")}
@@ -620,6 +729,45 @@ export default function Home() {
           )}
         </div>
       </div>
+      {showManualInput && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-neutral-800 rounded-2xl border border-neutral-700 p-5 shadow-2xl text-left">
+            <h3 className="text-lg font-bold text-white mb-2">Ручной ввод штрихкода</h3>
+            <p className="text-xs text-neutral-400 mb-4">Введите штрихкод товара для подтверждения:</p>
+            <input
+              type="text"
+              value={manualBarcode}
+              onChange={(e) => setManualBarcode(e.target.value)}
+              placeholder="Например: 1000101620748"
+              className="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-xl text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleManualSubmit();
+                }
+              }}
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setShowManualInput(false);
+                  setManualBarcode("");
+                  playSound("click");
+                }}
+                className="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded-xl text-xs font-bold transition"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleManualSubmit}
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-900 rounded-xl text-xs font-black transition"
+              >
+                Ввести
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {renderOrientationOverlay()}
     </>
   );
