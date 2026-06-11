@@ -607,7 +607,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3 my-2 shrink-0">
+                  <div className="grid grid-cols-2 gap-3 my-2 shrink-0">
                     <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 flex flex-col justify-between truncate">
                       <div>
                         <span className="block text-neutral-400 text-xs font-bold uppercase">Штрихкод (Требуется)</span>
@@ -628,42 +628,6 @@ export default function Home() {
                     <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 flex flex-col justify-center truncate">
                       <span className="block text-neutral-400 text-xs font-bold uppercase">Категория</span>
                       <span className="text-base font-bold text-white block mt-1 truncate">{currentItem.category}</span>
-                    </div>
-                    <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 flex flex-col justify-center">
-                      <span className="block text-neutral-400 text-[10px] font-bold uppercase text-amber-400">Ввод штрихкода</span>
-                      <input
-                        ref={barcodeInputRef}
-                        type="text"
-                        placeholder="Кликните и сканируйте"
-                        value={scannedBarcode}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setScannedBarcode(val);
-                          
-                          const cleanScanned = val.replace(/\D/g, "");
-                          const cleanCurrent = currentItem.barcode.replace(/\D/g, "");
-                          
-                          if (cleanScanned === cleanCurrent) {
-                            playSound("success");
-                            setIsScanned(true);
-                            setShowPlacementConfirm(true);
-                            setScannedBarcode("");
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            const val = scannedBarcode.trim();
-                            const cleanScanned = val.replace(/\D/g, "");
-                            const cleanCurrent = currentItem.barcode.replace(/\D/g, "");
-                            if (cleanScanned !== cleanCurrent && cleanScanned.length > 0) {
-                              playSound("warning");
-                              alert(`Неверный штрихкод! Введено: ${val}, Требуется: ${currentItem.barcode}`);
-                              setScannedBarcode("");
-                            }
-                          }
-                        }}
-                        className="w-full bg-neutral-900 border border-neutral-600 rounded px-2.5 py-1 text-sm text-white focus:outline-none focus:border-amber-400 font-mono mt-1"
-                      />
                     </div>
                   </div>
 
