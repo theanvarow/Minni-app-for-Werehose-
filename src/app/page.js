@@ -70,20 +70,10 @@ export default function Home() {
   // Scanner barcode input buffer
   const barcodeBuffer = useRef("");
   const lastKeyTime = useRef(0);
-  const barcodeInputRef = useRef(null);
-  const [scannedBarcode, setScannedBarcode] = useState("");
 
   useEffect(() => {
     setIsScanned(false);
     setShowPlacementConfirm(false);
-    setScannedBarcode("");
-    if (currentItem) {
-      setTimeout(() => {
-        if (barcodeInputRef.current) {
-          barcodeInputRef.current.focus();
-        }
-      }, 150);
-    }
   }, [currentItem]);
 
   useEffect(() => {
