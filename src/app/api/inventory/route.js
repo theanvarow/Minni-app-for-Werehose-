@@ -40,7 +40,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { rowIndex, status, userName, shift, placementCorrect } = body;
+    const { rowIndex, status, userName, shift, placementCorrect, timestamp } = body;
 
     if (!rowIndex || !status || !userName) {
       return NextResponse.json({ success: false, error: "Данные неполные (требуется имя пользователя)" }, { status: 400 });
@@ -51,7 +51,7 @@ export async function POST(request) {
       headers: {
         'Content-Type': 'text/plain;charset=utf-8', 
       },
-      body: JSON.stringify({ rowIndex, status, userName, shift, placementCorrect })
+      body: JSON.stringify({ rowIndex, status, userName, shift, placementCorrect, timestamp })
     });
 
     const data = await response.json();

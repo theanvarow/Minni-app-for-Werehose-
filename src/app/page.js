@@ -110,14 +110,14 @@ export default function Home() {
     if (!currentItem || !isLoggedIn) return;
 
     const handleKeyDown = (e) => {
-      // Ignore key events if user is typing in form inputs (like Login screen)
+      // Ignore key events if user is typing in form inputs (like Login screen or manual input modal)
       if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
         return;
       }
 
       const currentTime = Date.now();
       
-      // If time since last key is more than 100ms, reset buffer (new new scan started)
+      // If time since last key is more than 100ms, reset buffer (new scan started)
       if (currentTime - lastKeyTime.current > 100) {
         barcodeBuffer.current = "";
       }
@@ -157,6 +157,7 @@ export default function Home() {
       alert(`Неверный штрихкод! Сканирован: ${scanned}, Требуется: ${currentItem.barcode}`);
     }
   };
+
 
   useEffect(() => {
     // Register service worker
@@ -321,6 +322,9 @@ export default function Home() {
       fetchItems(true, selectedFloor);
     }
 
+    const now = new Date();
+    const formattedTimestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+
     try {
       await fetch("/api/inventory", {
         method: "POST",
@@ -330,7 +334,8 @@ export default function Home() {
           status, 
           userName, 
           shift: `${shift} смена`, 
-          placementCorrect
+          placementCorrect,
+          timestamp: formattedTimestamp
         }),
       });
       // We don't need to await or do anything here. If it succeeds, great.
