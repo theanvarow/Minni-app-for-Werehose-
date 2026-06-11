@@ -70,10 +70,20 @@ export default function Home() {
   // Scanner barcode input buffer
   const barcodeBuffer = useRef("");
   const lastKeyTime = useRef(0);
+  const barcodeInputRef = useRef(null);
+  const [scannedBarcode, setScannedBarcode] = useState("");
 
   useEffect(() => {
     setIsScanned(false);
     setShowPlacementConfirm(false);
+    setScannedBarcode("");
+    if (currentItem) {
+      setTimeout(() => {
+        if (barcodeInputRef.current) {
+          barcodeInputRef.current.focus();
+        }
+      }, 150);
+    }
   }, [currentItem]);
 
   useEffect(() => {
@@ -597,25 +607,63 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 my-2 shrink-0">
-                    <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 truncate">
-                      <span className="block text-neutral-400 text-xs font-bold uppercase">Штрихкод</span>
-                      <span className="font-mono text-base font-bold text-white block mt-0.5 truncate">{currentItem.barcode}</span>
+                  <div className="grid grid-cols-3 gap-3 my-2 shrink-0">
+                    <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 flex flex-col justify-between truncate">
+                      <div>
+                        <span className="block text-neutral-400 text-xs font-bold uppercase">Штрихкод (Требуется)</span>
+                        <span className="font-mono text-base font-bold text-white block mt-0.5 truncate">{currentItem.barcode}</span>
+                      </div>
                       {currentItem.name && (
                         <a 
                           href={`https://uzum.uz/uz/search?query=${encodeURIComponent(currentItem.name)}`} 
                           target="_blank" 
                           rel="noopener noreferrer" 
-                          className="text-[11px] text-blue-400 hover:text-blue-300 underline block mt-0.5"
+                          className="text-[11px] text-blue-400 hover:text-blue-300 underline block mt-1"
                           onClick={(e) => e.stopPropagation()}
                         >
                           🔍 Поиск на Uzum
                         </a>
                       )}
                     </div>
-                    <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 truncate">
+                    <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 flex flex-col justify-center truncate">
                       <span className="block text-neutral-400 text-xs font-bold uppercase">Категория</span>
-                      <span className="text-base font-bold text-white block mt-0.5 truncate">{currentItem.category}</span>
+                      <span className="text-base font-bold text-white block mt-1 truncate">{currentItem.category}</span>
+                    </div>
+                    <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 flex flex-col justify-center">
+                      <span className="block text-neutral-400 text-[10px] font-bold uppercase text-amber-400">Ввод штрихкода</span>
+                      <input
+                        ref={barcodeInputRef}
+                        type="text"
+                        placeholder="Кликните и сканируйте"
+                        value={scannedBarcode}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setScannedBarcode(val);
+                          
+                          const cleanScanned = val.replace(/\D/g, "");
+                          const cleanCurrent = currentItem.barcode.replace(/\D/g, "");
+                          
+                          if (cleanScanned === cleanCurrent) {
+                            playSound("success");
+                            setIsScanned(true);
+                            setShowPlacementConfirm(true);
+                            setScannedBarcode("");
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const val = scannedBarcode.trim();
+                            const cleanScanned = val.replace(/\D/g, "");
+                            const cleanCurrent = currentItem.barcode.replace(/\D/g, "");
+                            if (cleanScanned !== cleanCurrent && cleanScanned.length > 0) {
+                              playSound("warning");
+                              alert(`Неверный штрихкод! Введено: ${val}, Требуется: ${currentItem.barcode}`);
+                              setScannedBarcode("");
+                            }
+                          }
+                        }}
+                        className="w-full bg-neutral-900 border border-neutral-600 rounded px-2.5 py-1 text-sm text-white focus:outline-none focus:border-amber-400 font-mono mt-1"
+                      />
                     </div>
                   </div>
 
