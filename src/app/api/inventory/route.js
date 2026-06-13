@@ -13,7 +13,15 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const floor = searchParams.get('floor') || '';
-    const targetUrl = floor ? `${GOOGLE_SCRIPT_URL}?floor=${floor}` : GOOGLE_SCRIPT_URL;
+    const shift = searchParams.get('shift') || '';
+    
+    let targetUrl = GOOGLE_SCRIPT_URL;
+    const params = [];
+    if (floor) params.push(`floor=${encodeURIComponent(floor)}`);
+    if (shift) params.push(`shift=${encodeURIComponent(shift)}`);
+    if (params.length > 0) {
+      targetUrl += (targetUrl.includes('?') ? '&' : '?') + params.join('&');
+    }
 
     const response = await fetch(targetUrl, {
       method: 'GET',

@@ -275,7 +275,7 @@ export default function Home() {
       }
       setError("");
       
-      const res = await fetch(`/api/inventory?floor=${targetFloor}&t=${Date.now()}`);
+      const res = await fetch(`/api/inventory?floor=${targetFloor}&shift=${encodeURIComponent(shift + " смена")}&t=${Date.now()}`);
       const data = await res.json();
 
       if (data.success) {
