@@ -59,6 +59,10 @@ export default function Home() {
   const [loadingImage, setLoadingImage] = useState(false);
 
   const [isScanned, setIsScanned] = useState(false);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [overrideQuota, setOverrideQuota] = useState(false);
+  const DAILY_QUOTA = 93;
+  const showCelebration = completedCount >= DAILY_QUOTA && !overrideQuota;
 
   // PWA states
   const [isStandalone, setIsStandalone] = useState(false);
@@ -193,6 +197,11 @@ export default function Home() {
       setUserName(storedName);
       setShift(storedShift || "");
       setIsLoggedIn(true);
+      
+      const todayStr = new Date().toISOString().split('T')[0];
+      const storedCount = localStorage.getItem(`audit_count_${storedName}_${todayStr}`);
+      setCompletedCount(storedCount ? parseInt(storedCount, 10) : 0);
+
       if (storedFloor) {
         setSelectedFloor(storedFloor);
         fetchItems(false, storedFloor);
@@ -210,13 +219,19 @@ export default function Home() {
       alert("Пожалуйста, выберите вашу смену!");
       return;
     }
-    if (nameInput.trim().length > 2) {
-      localStorage.setItem("userName", nameInput.trim());
+    const trimmedName = nameInput.trim();
+    if (trimmedName.length > 2) {
+      localStorage.setItem("userName", trimmedName);
       localStorage.setItem("shift", shiftInput);
-      setUserName(nameInput.trim());
+      setUserName(trimmedName);
       setShift(shiftInput);
       setIsLoggedIn(true);
       
+      const todayStr = new Date().toISOString().split('T')[0];
+      const storedCount = localStorage.getItem(`audit_count_${trimmedName}_${todayStr}`);
+      setCompletedCount(storedCount ? parseInt(storedCount, 10) : 0);
+      setOverrideQuota(false);
+
       // Clear floor to force selection after login
       localStorage.removeItem("selectedFloor");
       setSelectedFloor("");
@@ -233,6 +248,8 @@ export default function Home() {
     setItemQueue([]);
     setShowPlacementConfirm(false);
     setSelectedFloor("");
+    setCompletedCount(0);
+    setOverrideQuota(false);
   };
 
   const handleFloorChange = (newFloor) => {
@@ -307,15 +324,20 @@ export default function Home() {
       playSound("warning");
     }
 
-    // Get the current item from the top of the queue
-    const currentItem = itemQueue[0];
-    
     // Mark as verified so we don't fetch it again while backend is syncing
     verifiedRowsRef.current.add(currentItem.rowIndex);
 
     // OPTIMISTIC UI: Immediately remove the item from the queue to show the next one
     setItemQueue(prevQueue => prevQueue.slice(1));
     setShowPlacementConfirm(false);
+
+    // Increment and save today's count
+    setCompletedCount(prev => {
+      const nextCount = prev + 1;
+      const todayStr = new Date().toISOString().split('T')[0];
+      localStorage.setItem(`audit_count_${userName}_${todayStr}`, nextCount.toString());
+      return nextCount;
+    });
 
     // If queue is getting low (< 3), fetch more in the background
     if (itemQueue.length - 1 <= 3) {
@@ -504,7 +526,7 @@ export default function Home() {
       <div className="w-screen h-[100dvh] bg-neutral-900 text-white p-3 font-sans flex flex-col overflow-hidden select-none">
         
         {/* Header bar showing user and logout */}
-        <div className="h-10 shrink-0 flex justify-between items-center w-full px-2 border-b border-neutral-800 mb-2 text-xs">
+        <div className="h-12 shrink-0 flex justify-between items-center w-full px-2 border-b border-neutral-800 mb-2 text-xs">
           <div className="text-neutral-400 flex items-center gap-2">
             <span>
               Сотрудник: <span className="font-bold text-white">{userName}{shift ? ` (${shift} смена)` : ""}</span>
@@ -522,6 +544,24 @@ export default function Home() {
                 Сменить
               </button>
             </span>
+          </div>
+
+          {/* Quota progress bar in the center */}
+          <div className="flex items-center gap-2 bg-neutral-800/50 px-2.5 py-1 rounded-lg border border-neutral-800/80">
+            <span className="text-[10px] font-bold text-neutral-300">
+              Прогресс: <span className="text-amber-400 font-extrabold">{completedCount}</span> / 93
+            </span>
+            <div className="w-14 md:w-20 h-1.5 bg-neutral-950 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-500"
+                style={{ width: `${Math.min((completedCount / 93) * 100, 100)}%` }}
+              />
+            </div>
+            {completedCount >= 93 ? (
+              <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded font-extrabold animate-pulse">Готово!</span>
+            ) : (
+              <span className="text-[9px] text-neutral-400">{Math.round((completedCount / 93) * 100)}%</span>
+            )}
           </div>
           
           <div className="flex items-center gap-3">
@@ -545,7 +585,55 @@ export default function Home() {
             </div>
           )}
 
-          {!currentItem && !error && isFetchingBackground && (
+          {!error && showCelebration && (
+            <div className="w-full text-center bg-neutral-800 rounded-xl flex flex-col items-center justify-center border border-neutral-700 p-6 shadow-2xl relative overflow-hidden">
+              {/* Decorative glowing background gradients */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute top-1/3 left-1/3 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+              
+              {/* Floating micro-animated elements */}
+              <div className="text-6xl animate-bounce mb-3 select-none filter drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]">🏆</div>
+              
+              <h2 className="text-3xl font-black bg-gradient-to-r from-amber-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent mb-2 tracking-wide">
+                Vazifa bajarildi! 🎉
+              </h2>
+              
+              <p className="text-base text-neutral-200 font-bold max-w-md mb-1">
+                Tabriklaymiz, bugungi rejangiz (93 SKU) muvaffaqiyatli yakunlandi!
+              </p>
+              <p className="text-xs text-neutral-400 max-w-sm mb-6">
+                Bugun qayta ishlangan jami: <span className="text-emerald-400 font-extrabold text-sm">{completedCount}</span> SKU
+              </p>
+              
+              <div className="flex gap-4 shrink-0">
+                <button 
+                  onClick={() => {
+                    setOverrideQuota(true);
+                    playSound("click");
+                  }}
+                  className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-sm transition active:scale-95 shadow-lg shadow-emerald-950/40 border border-emerald-500/30"
+                >
+                  Ishni davom ettirish (Продолжить)
+                </button>
+                <button 
+                  onClick={() => {
+                    if (confirm("Hisoblagichni haqiqatan ham nollamoqchimisiz?")) {
+                      const todayStr = new Date().toISOString().split('T')[0];
+                      localStorage.setItem(`audit_count_${userName}_${todayStr}`, "0");
+                      setCompletedCount(0);
+                      setOverrideQuota(false);
+                      playSound("click");
+                    }
+                  }}
+                  className="px-4 py-3 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded-xl font-semibold text-xs transition active:scale-95 border border-neutral-600"
+                >
+                  Qayta boshlash (Сбросить)
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!error && !showCelebration && !currentItem && isFetchingBackground && (
             <div className="w-full text-center bg-neutral-800 rounded-xl flex flex-col items-center justify-center border border-neutral-700">
               <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-blue-500 mb-3"></div>
               <h2 className="text-lg font-bold text-white">Загрузка следующего товара...</h2>
@@ -553,7 +641,7 @@ export default function Home() {
             </div>
           )}
 
-          {!currentItem && !error && !isFetchingBackground && (
+          {!error && !showCelebration && !currentItem && !isFetchingBackground && (
             <div className="w-full text-center bg-neutral-800 rounded-xl flex flex-col items-center justify-center border border-neutral-700 p-4">
               <h2 className="text-2xl font-black text-green-400">✅ Все товары проверены!</h2>
               <p className="text-xs text-neutral-400 mt-2">В таблице больше нет товаров для проверки.</p>
@@ -566,7 +654,7 @@ export default function Home() {
             </div>
           )}
 
-          {currentItem && !error && (
+          {!error && !showCelebration && currentItem && (
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
               {/* Top part: Item Info (Larger fonts, scrollable name, optional image) */}
               <div className="flex-1 flex gap-3 min-h-0 overflow-hidden mb-2.5">
