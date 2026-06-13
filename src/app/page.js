@@ -608,12 +608,12 @@ export default function Home() {
               <div className="flex justify-center shrink-0">
                 <button 
                   onClick={() => {
-                    setOverrideQuota(true);
+                    handleLogout();
                     playSound("click");
                   }}
-                  className="px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-sm transition active:scale-95 shadow-lg shadow-emerald-950/40 border border-emerald-500/30"
+                  className="px-8 py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white rounded-xl font-bold text-sm transition active:scale-95 shadow-lg shadow-red-950/40 border border-red-500/30"
                 >
-                  Продолжить работу
+                  Выйти из аккаунта
                 </button>
               </div>
             </div>
