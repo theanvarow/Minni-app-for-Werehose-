@@ -204,7 +204,7 @@ export default function Home() {
 
       if (storedFloor) {
         setSelectedFloor(storedFloor);
-        fetchItems(false, storedFloor);
+        fetchItems(false, storedFloor, storedShift || "");
       } else {
         setLoading(false); // Show floor selection screen
       }
@@ -258,13 +258,13 @@ export default function Home() {
     setItemQueue([]);
     verifiedRowsRef.current = new Set();
     if (newFloor) {
-      fetchItems(false, newFloor);
+      fetchItems(false, newFloor, shift);
     }
   };
 
   const verifiedRowsRef = useRef(new Set());
 
-  const fetchItems = async (isBackground = false, targetFloor = selectedFloor) => {
+  const fetchItems = async (isBackground = false, targetFloor = selectedFloor, targetShift = shift) => {
     if (isFetchingBackground) return;
     
     try {
@@ -275,7 +275,7 @@ export default function Home() {
       }
       setError("");
       
-      const res = await fetch(`/api/inventory?floor=${targetFloor}&shift=${encodeURIComponent(shift + " смена")}&t=${Date.now()}`);
+      const res = await fetch(`/api/inventory?floor=${targetFloor}&shift=${encodeURIComponent(targetShift + " смена")}&t=${Date.now()}`);
       const data = await res.json();
 
       if (data.success) {
@@ -297,7 +297,7 @@ export default function Home() {
             // We should poll again in 1.5 seconds if we are in background mode.
             if (isBackground) {
               setTimeout(() => {
-                fetchItems(true, targetFloor);
+                fetchItems(true, targetFloor, targetShift);
               }, 1500);
               // Do not set isFetchingBackground to false yet, let the spinner keep spinning
               return;
@@ -341,7 +341,7 @@ export default function Home() {
 
     // If queue is getting low (< 3), fetch more in the background
     if (itemQueue.length - 1 <= 3) {
-      fetchItems(true, selectedFloor);
+      fetchItems(true, selectedFloor, shift);
     }
 
     const now = new Date();
@@ -632,7 +632,7 @@ export default function Home() {
               <h2 className="text-2xl font-black text-green-400">✅ Все товары проверены!</h2>
               <p className="text-xs text-neutral-400 mt-2">В таблице больше нет товаров для проверки.</p>
               <button 
-                onClick={() => fetchItems()}
+                onClick={() => fetchItems(false, selectedFloor, shift)}
                 className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-sm transition active:scale-95"
               >
                 Обновить
