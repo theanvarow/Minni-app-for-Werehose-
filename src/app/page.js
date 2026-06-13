@@ -595,39 +595,25 @@ export default function Home() {
               <div className="text-6xl animate-bounce mb-3 select-none filter drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]">🏆</div>
               
               <h2 className="text-3xl font-black bg-gradient-to-r from-amber-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent mb-2 tracking-wide">
-                Vazifa bajarildi! 🎉
+                Задание выполнено! 🎉
               </h2>
               
               <p className="text-base text-neutral-200 font-bold max-w-md mb-1">
-                Tabriklaymiz, bugungi rejangiz ({DAILY_QUOTA} SKU) muvaffaqiyatli yakunlandi!
+                Поздравляем, ваш план на сегодня ({DAILY_QUOTA} SKU) успешно выполнен!
               </p>
               <p className="text-xs text-neutral-400 max-w-sm mb-6">
-                Bugun qayta ishlangan jami: <span className="text-emerald-400 font-extrabold text-sm">{completedCount}</span> SKU
+                Всего обработано сегодня: <span className="text-emerald-400 font-extrabold text-sm">{completedCount}</span> SKU
               </p>
               
-              <div className="flex gap-4 shrink-0">
+              <div className="flex justify-center shrink-0">
                 <button 
                   onClick={() => {
                     setOverrideQuota(true);
                     playSound("click");
                   }}
-                  className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-sm transition active:scale-95 shadow-lg shadow-emerald-950/40 border border-emerald-500/30"
+                  className="px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-sm transition active:scale-95 shadow-lg shadow-emerald-950/40 border border-emerald-500/30"
                 >
-                  Ishni davom ettirish (Продолжить)
-                </button>
-                <button 
-                  onClick={() => {
-                    if (confirm("Hisoblagichni haqiqatan ham nollamoqchimisiz?")) {
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      localStorage.setItem(`audit_count_${userName}_${todayStr}`, "0");
-                      setCompletedCount(0);
-                      setOverrideQuota(false);
-                      playSound("click");
-                    }
-                  }}
-                  className="px-4 py-3 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded-xl font-semibold text-xs transition active:scale-95 border border-neutral-600"
-                >
-                  Qayta boshlash (Сбросить)
+                  Продолжить работу
                 </button>
               </div>
             </div>
