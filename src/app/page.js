@@ -61,7 +61,7 @@ export default function Home() {
   const [isScanned, setIsScanned] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
   const [overrideQuota, setOverrideQuota] = useState(false);
-  const DAILY_QUOTA = 93;
+  const DAILY_QUOTA = 3;
   const showCelebration = completedCount >= DAILY_QUOTA && !overrideQuota;
 
   // PWA states
@@ -549,18 +549,18 @@ export default function Home() {
           {/* Quota progress bar in the center */}
           <div className="flex items-center gap-2 bg-neutral-800/50 px-2.5 py-1 rounded-lg border border-neutral-800/80">
             <span className="text-[10px] font-bold text-neutral-300">
-              Прогресс: <span className="text-amber-400 font-extrabold">{completedCount}</span> / 93
+              Прогресс: <span className="text-amber-400 font-extrabold">{completedCount}</span> / {DAILY_QUOTA}
             </span>
             <div className="w-14 md:w-20 h-1.5 bg-neutral-950 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-500"
-                style={{ width: `${Math.min((completedCount / 93) * 100, 100)}%` }}
+                style={{ width: `${Math.min((completedCount / DAILY_QUOTA) * 100, 100)}%` }}
               />
             </div>
-            {completedCount >= 93 ? (
+            {completedCount >= DAILY_QUOTA ? (
               <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded font-extrabold animate-pulse">Готово!</span>
             ) : (
-              <span className="text-[9px] text-neutral-400">{Math.round((completedCount / 93) * 100)}%</span>
+              <span className="text-[9px] text-neutral-400">{Math.round((completedCount / DAILY_QUOTA) * 100)}%</span>
             )}
           </div>
           
@@ -599,7 +599,7 @@ export default function Home() {
               </h2>
               
               <p className="text-base text-neutral-200 font-bold max-w-md mb-1">
-                Tabriklaymiz, bugungi rejangiz (93 SKU) muvaffaqiyatli yakunlandi!
+                Tabriklaymiz, bugungi rejangiz ({DAILY_QUOTA} SKU) muvaffaqiyatli yakunlandi!
               </p>
               <p className="text-xs text-neutral-400 max-w-sm mb-6">
                 Bugun qayta ishlangan jami: <span className="text-emerald-400 font-extrabold text-sm">{completedCount}</span> SKU
