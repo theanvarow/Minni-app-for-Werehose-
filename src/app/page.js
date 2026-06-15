@@ -54,6 +54,13 @@ export default function Home() {
   const [shiftInput, setShiftInput] = useState("");
   const [showPlacementConfirm, setShowPlacementConfirm] = useState(false);
   const [selectedFloor, setSelectedFloor] = useState("");
+  
+  // Statistics states
+  const [showStats, setShowStats] = useState(false);
+  const [statsData, setStatsData] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [statsError, setStatsError] = useState("");
+  const [selectedDateStr, setSelectedDateStr] = useState("");
 
   const [productImage, setProductImage] = useState("");
   const [loadingImage, setLoadingImage] = useState(false);
@@ -61,7 +68,7 @@ export default function Home() {
   const [isScanned, setIsScanned] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
   const [overrideQuota, setOverrideQuota] = useState(false);
-  const DAILY_QUOTA = 3;
+  const DAILY_QUOTA = 93;
   const showCelebration = completedCount >= DAILY_QUOTA && !overrideQuota;
 
   // PWA states
@@ -315,6 +322,28 @@ export default function Home() {
     }
   };
 
+  const fetchStats = async () => {
+    setLoadingStats(true);
+    setStatsError("");
+    try {
+      const res = await fetch(`/api/inventory?action=stats&t=${Date.now()}`);
+      const data = await res.json();
+      if (data.success) {
+        if (data.stats) {
+          setStatsData(data.stats);
+        } else {
+          setStatsError("Пожалуйста, обновите Google Apps Script до последней версии (внедрите код статистики и сделайте New Version Deployment).");
+        }
+      } else {
+        setStatsError(data.error || "Не удалось загрузить статистику");
+      }
+    } catch (err) {
+      setStatsError("Ошибка подключения к серверу");
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
   const handleUpdate = async (status, placementCorrect = "") => {
     if (itemQueue.length === 0) return;
 
@@ -365,6 +394,248 @@ export default function Home() {
       console.error("Failed to update item:", err);
       // Optional: Add it back to the queue if it fails, or show a small toast error
     }
+  };
+
+  const renderStatsModal = () => {
+    if (!showStats) return null;
+
+    return (
+      <div className="fixed inset-0 bg-neutral-950/80 backdrop-blur-md z-[9999] flex items-center justify-center p-2 sm:p-4 overflow-y-auto font-sans">
+        <div className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-2xl flex flex-col max-h-[95vh] overflow-hidden text-left">
+          {/* Header */}
+          <div className="flex justify-between items-center border-b border-neutral-800 pb-2.5 mb-2.5 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xl sm:text-2xl">📊</span>
+              <div>
+                <h2 className="text-sm sm:text-base font-black text-white leading-none">Статистика смен</h2>
+                <p className="text-[10px] text-neutral-400 mt-1">План на день: 600 SKU на каждую смену</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowStats(false);
+                playSound("click");
+              }}
+              className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition active:scale-95"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Date Selector Filter */}
+          {!loadingStats && !statsError && statsData && Object.keys(statsData).length > 0 && (
+            <div className="mb-3 bg-neutral-800/30 border border-neutral-800/80 p-2.5 rounded-xl flex items-center justify-between gap-3 shrink-0 text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className="text-neutral-400 font-semibold">Фильтр:</span>
+                {selectedDateStr && (
+                  <button
+                    onClick={() => {
+                      setSelectedDateStr("");
+                      playSound("click");
+                    }}
+                    className="bg-red-950/80 hover:bg-red-900 border border-red-500/30 px-1.5 py-0.5 rounded text-[9px] text-white font-bold transition active:scale-95"
+                  >
+                    Сбросить
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={selectedDateStr}
+                  onChange={(e) => {
+                    setSelectedDateStr(e.target.value);
+                    playSound("click");
+                  }}
+                  className="bg-neutral-800 border border-neutral-700 rounded-lg px-2.5 py-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-[10px] cursor-pointer select-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto pr-1 min-h-0">
+            {loadingStats && (
+              <div className="py-12 flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500 mb-2"></div>
+                <p className="text-xs text-neutral-400 font-medium animate-pulse">Загрузка данных из таблицы...</p>
+              </div>
+            )}
+
+            {statsError && (
+              <div className="py-8 text-center">
+                <p className="text-red-400 font-bold text-xs mb-2">⚠️ {statsError}</p>
+                <button
+                  onClick={fetchStats}
+                  className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-[10px] font-bold rounded-lg transition"
+                >
+                  Повторить попытку
+                </button>
+              </div>
+            )}
+
+            {!loadingStats && !statsError && statsData && (
+              <div className="flex flex-col gap-3">
+                {(() => {
+                  const filteredDates = Object.keys(statsData).filter(
+                    (dateStr) => !selectedDateStr || dateStr === selectedDateStr
+                  );
+
+                  if (filteredDates.length === 0) {
+                    return (
+                      <div className="text-center py-10">
+                        <p className="text-neutral-500 text-xs">Нет данных о проделанной работе за выбранную дату.</p>
+                        {selectedDateStr && (
+                          <button
+                            onClick={() => {
+                              setSelectedDateStr("");
+                              playSound("click");
+                            }}
+                            className="mt-2.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition active:scale-95"
+                          >
+                            Показать все дни
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return filteredDates
+                    .sort((a, b) => new Date(b) - new Date(a)) // Sort dates descending
+                    .map((dateStr) => {
+                      const dayData = statsData[dateStr];
+                      const formattedDate = new Date(dateStr).toLocaleDateString('ru-RU', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      });
+
+                      return (
+                        <div key={dateStr} className="bg-neutral-800/30 border border-neutral-800/80 rounded-xl p-3">
+                          <h3 className="text-xs font-extrabold text-amber-400 mb-2 border-b border-neutral-800/60 pb-1">
+                            📅 {formattedDate}
+                          </h3>
+                          <div className="grid grid-cols-2 gap-2.5 items-start">
+                            {["1 смена", "2 смена", "3 смена", "4 смена"].map((shiftName) => {
+                              const matchingKey = Object.keys(dayData).find(
+                                k => k.replace(/\s+/g, '').toLowerCase() === shiftName.replace(/\s+/g, '').toLowerCase()
+                              ) || shiftName;
+                              
+                              const isObject = typeof dayData[matchingKey] === "object" && dayData[matchingKey] !== null;
+                              const count = isObject ? (dayData[matchingKey].total || 0) : (dayData[matchingKey] || 0);
+                              
+                              const confirmed = isObject ? (dayData[matchingKey].confirmed || 0) : 0;
+                              const missing = isObject ? (dayData[matchingKey].missing || 0) : 0;
+                              const placementCorrect = isObject ? (dayData[matchingKey].placementCorrect || 0) : 0;
+                              const users = isObject ? (dayData[matchingKey].users || {}) : {};
+                              
+                              const pctConfirmed = count > 0 ? Math.round((confirmed / count) * 100) : 0;
+                              const pctMissing = count > 0 ? Math.round((missing / count) * 100) : 0;
+                              const pctPlacement = confirmed > 0 ? Math.round((placementCorrect / confirmed) * 100) : 0;
+
+                              const target = 600;
+                              const pct = Math.min(Math.round((count / target) * 100), 100);
+                              const isCompleted = count >= target;
+
+                              return (
+                                <div key={shiftName} className="bg-neutral-900/40 border border-neutral-800/80 rounded-lg p-2 flex flex-col justify-start gap-1.5 text-[10px]">
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className="font-bold text-neutral-200 text-[10px]">{shiftName}</span>
+                                    <div className="flex items-center gap-1 font-mono">
+                                      <span className={`font-black ${isCompleted ? 'text-emerald-400' : 'text-neutral-300'}`}>
+                                        {count}
+                                      </span>
+                                      <span className="text-neutral-500">/{target}</span>
+                                      <span className="text-blue-400 font-extrabold text-[9px] ml-0.5">({pct}%)</span>
+                                      {isCompleted && (
+                                        <span className="bg-emerald-500/20 text-emerald-400 px-1 py-0.2 rounded font-black text-[8px] animate-pulse ml-0.5">Plan! ✅</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Progress bar */}
+                                  <div className="w-full h-1 bg-neutral-950 rounded-full overflow-hidden mb-1.5">
+                                    <div
+                                      className={`h-full transition-all duration-500 rounded-full ${
+                                        isCompleted
+                                          ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                                          : pct > 75
+                                          ? 'bg-gradient-to-r from-blue-500 to-emerald-400'
+                                          : pct > 30
+                                          ? 'bg-gradient-to-r from-amber-500 to-blue-400'
+                                          : 'bg-gradient-to-r from-red-500 to-amber-400'
+                                      }`}
+                                      style={{ width: `${pct}%` }}
+                                    />
+                                  </div>
+
+                                  {/* Sub-stats for status and placement */}
+                                  {isObject && count > 0 ? (
+                                    <>
+                                      <div className="grid grid-cols-3 gap-1 mt-1 border-t border-neutral-850 pt-1 text-[9px] leading-tight">
+                                        <div className="flex flex-col">
+                                          <span className="text-neutral-500 text-[8px] font-bold">Найдено</span>
+                                          <span className="text-emerald-400 font-bold mt-0.5 truncate">{confirmed}шт ({pctConfirmed}%)</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                          <span className="text-neutral-500 text-[8px] font-bold">Отсутств.</span>
+                                          <span className="text-red-400 font-bold mt-0.5 truncate">{missing}шт ({pctMissing}%)</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                          <span className="text-neutral-500 text-[8px] font-bold">Прав. разм.</span>
+                                          <span className="text-amber-400 font-bold mt-0.5 truncate">{placementCorrect}шт ({pctPlacement}%)</span>
+                                        </div>
+                                      </div>
+
+                                      {/* Employees list */}
+                                      {users && Object.keys(users).length > 0 && (
+                                        <div className="mt-1.5 border-t border-neutral-850 pt-1.5 flex flex-col gap-1 text-[10px]">
+                                          <span className="text-neutral-400 text-[9px] font-extrabold block mb-0.5 uppercase tracking-wider">Сотрудники:</span>
+                                          <div className="flex flex-col gap-1 leading-none">
+                                            {Object.keys(users).map((u) => (
+                                              <div key={u} className="flex justify-between items-center text-neutral-200 py-0.5">
+                                                <span className="font-bold text-neutral-100 truncate max-w-[75%]" title={u}>{u}</span>
+                                                <span className="font-mono text-amber-400 font-black text-[9px] bg-amber-500/10 px-1 py-0.5 rounded">{users[u]} шт</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <div className="flex justify-between items-center text-[9px] text-neutral-500 italic mt-1 border-t border-neutral-850 pt-1">
+                                      <span>{pct}% выполнено</span>
+                                      <span>{count === 0 && "Работа не начата"}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    });
+                })()}
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-2.5 pt-2 border-t border-neutral-800 flex justify-end shrink-0">
+            <button
+              onClick={() => {
+                setShowStats(false);
+                playSound("click");
+              }}
+              className="px-4 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg text-[10px] font-bold transition active:scale-95"
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
 
@@ -460,9 +731,25 @@ export default function Home() {
                 Войти
               </button>
             </form>
+            
+            {/* Statistics button */}
+            <div className="mt-4 pt-3 border-t border-neutral-700 flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStats(true);
+                  fetchStats();
+                  playSound("click");
+                }}
+                className="text-xs text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 transition-all active:scale-95"
+              >
+                📊 Статистика смен
+              </button>
+            </div>
           </div>
         </div>
         {renderOrientationOverlay()}
+        {renderStatsModal()}
       </>
     );
   }
@@ -487,15 +774,27 @@ export default function Home() {
                 <span className="font-bold text-white truncate max-w-[180px] block">{userName}</span>
                 <span className="text-[10px] text-blue-400 font-semibold block mt-0.5">{shift} смена</span>
               </div>
-              <button 
-                onClick={() => {
-                  handleLogout();
-                  playSound("click");
-                }} 
-                className="px-5 py-2.5 bg-red-900/80 border border-red-500 text-white hover:bg-red-800 rounded-xl text-sm font-black transition active:scale-95 shadow-md shadow-red-900/30"
-              >
-                Выйти
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowStats(true);
+                    fetchStats();
+                    playSound("click");
+                  }}
+                  className="px-3 py-2.5 bg-neutral-800 border border-neutral-700 text-white hover:bg-neutral-700 rounded-xl text-sm font-bold transition active:scale-95"
+                >
+                  📊 Статистика
+                </button>
+                <button 
+                  onClick={() => {
+                    handleLogout();
+                    playSound("click");
+                  }} 
+                  className="px-5 py-2.5 bg-red-900/80 border border-red-500 text-white hover:bg-red-800 rounded-xl text-sm font-black transition active:scale-95 shadow-md shadow-red-900/30"
+                >
+                  Выйти
+                </button>
+              </div>
             </div>
 
             {/* Floor selector buttons */}
@@ -517,6 +816,7 @@ export default function Home() {
           </div>
         </div>
         {renderOrientationOverlay()}
+        {renderStatsModal()}
       </>
     );
   }
@@ -569,6 +869,16 @@ export default function Home() {
               В очереди: <span className="font-bold text-blue-400">{itemQueue.length}</span>
               {isFetchingBackground && <span className="ml-1.5 animate-pulse text-amber-500">...</span>}
             </span>
+            <button
+              onClick={() => {
+                setShowStats(true);
+                fetchStats();
+                playSound("click");
+              }}
+              className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 px-3 py-1 rounded-md border border-blue-500/30 text-xs font-bold transition active:scale-95"
+            >
+              📊 Статистика
+            </button>
             <button onClick={() => {
               handleLogout();
               playSound("click");
@@ -629,8 +939,8 @@ export default function Home() {
 
           {!error && !showCelebration && !currentItem && !isFetchingBackground && (
             <div className="w-full text-center bg-neutral-800 rounded-xl flex flex-col items-center justify-center border border-neutral-700 p-4">
-              <h2 className="text-2xl font-black text-green-400">✅ Все товары проверены!</h2>
-              <p className="text-xs text-neutral-400 mt-2">В таблице больше нет товаров для проверки.</p>
+              <h2 className="text-2xl font-black text-amber-400">⚠️ Для этажа {selectedFloor} нет доступных SKU</h2>
+              <p className="text-xs text-neutral-400 mt-2">В таблице больше нет товаров для проверки на этом этаже.</p>
               <button 
                 onClick={() => fetchItems(false, selectedFloor, shift)}
                 className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-sm transition active:scale-95"
@@ -789,6 +1099,7 @@ export default function Home() {
         </div>
       </div>
       {renderOrientationOverlay()}
+      {renderStatsModal()}
     </>
   );
 }
