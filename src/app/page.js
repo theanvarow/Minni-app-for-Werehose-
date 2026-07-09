@@ -64,6 +64,7 @@ export default function Home() {
 
   const [productImage, setProductImage] = useState("");
   const [loadingImage, setLoadingImage] = useState(false);
+  const [displayProductName, setDisplayProductName] = useState("");
 
   const [isScanned, setIsScanned] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
@@ -78,6 +79,27 @@ export default function Home() {
 
   const currentItem = itemQueue.length > 0 ? itemQueue[0] : null;
 
+  const getProductId = (item) => {
+    if (!item) return "";
+    let rawId = "";
+    if (item.productId) {
+      rawId = String(item.productId).trim();
+    } else {
+      const cleanBarcode = item.barcode ? String(item.barcode).trim() : "";
+      if (cleanBarcode.startsWith("1000") && cleanBarcode.length === 13) {
+        rawId = cleanBarcode.substring(4, 11);
+      }
+    }
+    
+    // Sanitize: strip floating point decimals (e.g. 2801757.0 -> 2801757)
+    if (rawId.includes(".")) {
+      rawId = rawId.split(".")[0];
+    }
+    return rawId.replace(/\D/g, ""); // Keep only digits
+  };
+
+  const currentProductId = getProductId(currentItem);
+
   // Scanner barcode input buffer
   const barcodeBuffer = useRef("");
   const lastKeyTime = useRef(0);
@@ -90,27 +112,38 @@ export default function Home() {
   useEffect(() => {
     if (!currentItem) {
       setProductImage("");
+      setDisplayProductName("");
       return;
     }
+
+    setDisplayProductName(currentItem.name || "");
 
     if (currentItem.image) {
       setProductImage(currentItem.image);
       return;
     }
 
-    if (currentItem.productId) {
+    const prodId = getProductId(currentItem);
+
+    if (prodId) {
       setLoadingImage(true);
       setProductImage("");
-      fetch(`https://api.uzum.uz/api/v2/product/${currentItem.productId}`)
+      fetch(`https://api.uzum.uz/api/v2/product/${prodId}`)
         .then(res => res.json())
         .then(resData => {
-          if (resData.success && resData.payload && resData.payload.data && resData.payload.data.photos && resData.payload.data.photos.length > 0) {
-            const photoObj = resData.payload.data.photos[0].photo;
-            const imgUrl = photoObj["480"]?.high || photoObj["240"]?.high || "";
-            setProductImage(imgUrl);
+          if (resData.success && resData.payload && resData.payload.data) {
+            const data = resData.payload.data;
+            if (data.photos && data.photos.length > 0) {
+              const photoObj = data.photos[0].photo;
+              const imgUrl = photoObj["480"]?.high || photoObj["240"]?.high || "";
+              setProductImage(imgUrl);
+            }
+            if (data.title && !currentItem.name) {
+              setDisplayProductName(data.title);
+            }
           }
         })
-        .catch(err => console.error("Error fetching product image:", err))
+        .catch(err => console.error("Error fetching product details:", err))
         .finally(() => setLoadingImage(false));
     } else {
       setProductImage("");
@@ -987,15 +1020,17 @@ export default function Home() {
                         <span className="block text-neutral-400 text-xs font-bold uppercase">Штрихкод (Требуется)</span>
                         <span className="font-mono text-base font-bold text-white block mt-0.5 truncate">{currentItem.barcode}</span>
                       </div>
-                      {currentItem.name && (
+                      {(displayProductName || currentProductId) && (
                         <a 
-                          href={`https://uzum.uz/uz/search?query=${encodeURIComponent(currentItem.name)}`} 
+                          href={currentProductId 
+                            ? `https://uzum.uz/uz/product/${currentProductId}` 
+                            : `https://uzum.uz/uz/search?query=${encodeURIComponent(displayProductName)}`} 
                           target="_blank" 
                           rel="noopener noreferrer" 
                           className="text-[11px] text-blue-400 hover:text-blue-300 underline block mt-1"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          🔍 Поиск на Uzum
+                          {currentProductId ? "🔍 Товар на Uzum" : "🔍 Поиск на Uzum"}
                         </a>
                       )}
                     </div>
@@ -1007,7 +1042,9 @@ export default function Home() {
 
                   <div className="bg-neutral-900/40 rounded-xl p-2.5 border border-neutral-700/30 flex-1 overflow-y-auto min-h-0">
                     <span className="block text-neutral-400 text-xs font-bold uppercase tracking-wider mb-1">Наименование товара</span>
-                    <p className="text-base md:text-lg font-bold text-neutral-100 leading-snug break-words">{currentItem.name}</p>
+                    <p className="text-base md:text-lg font-bold text-neutral-100 leading-snug break-words">
+                      {displayProductName || (currentProductId ? "Загрузка наименования..." : "Наименование не указано")}
+                    </p>
                   </div>
                 </div>
 
