@@ -128,7 +128,7 @@ export default function Home() {
     if (prodId) {
       setLoadingImage(true);
       setProductImage("");
-      fetch(`https://api.uzum.uz/api/v2/product/${prodId}`)
+      fetch(`/api/product?id=${prodId}`)
         .then(res => res.json())
         .then(resData => {
           if (resData.success && resData.payload && resData.payload.data) {
@@ -143,7 +143,12 @@ export default function Home() {
             }
           }
         })
-        .catch(err => console.error("Error fetching product details:", err))
+        .catch(err => {
+          console.error("Error fetching product details:", err);
+          if (!currentItem.name) {
+            setDisplayProductName("Наименование не найдено (используйте ссылку 'Товар на Uzum' ниже)");
+          }
+        })
         .finally(() => setLoadingImage(false));
     } else {
       setProductImage("");

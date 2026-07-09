@@ -32,6 +32,14 @@ export async function GET(request) {
     });
     
     const data = await response.json();
+    
+    // Auto-wrap raw stats from Google Apps Script if needed
+    if (searchParams.get("action") === "stats") {
+      if (data && typeof data === "object" && !data.hasOwnProperty("success")) {
+        return NextResponse.json({ success: true, stats: data });
+      }
+    }
+    
     return NextResponse.json(data);
 
   } catch (error) {
