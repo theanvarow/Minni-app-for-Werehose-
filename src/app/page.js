@@ -815,10 +815,10 @@ export default function Home() {
 
   return (
     <>
-      <div className="w-screen h-[100dvh] bg-neutral-900 text-white p-3 font-sans flex flex-col overflow-hidden select-none">
+      <div className="w-screen h-[100dvh] bg-neutral-900 text-white p-1.5 md:p-3 font-sans flex flex-col overflow-hidden select-none">
         
         {/* Header bar showing user and logout */}
-        <div className="h-12 shrink-0 flex justify-between items-center w-full px-2 border-b border-neutral-800 mb-2 text-xs">
+        <div className="h-9 md:h-12 shrink-0 flex justify-between items-center w-full px-2 border-b border-neutral-800 mb-1.5 md:mb-2 text-xs">
           <div className="text-neutral-400 flex items-center gap-2">
             <span>
               Сотрудник: <span className="font-bold text-white">{userName}{shift ? ` (${shift} смена)` : ""}</span>
@@ -945,7 +945,7 @@ export default function Home() {
           {!error && !showCelebration && currentItem && (
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
               {/* Top part: Item Info (Larger fonts, scrollable name, optional image) */}
-              <div className="flex-1 flex gap-3 min-h-0 overflow-hidden mb-2.5">
+              <div className="flex-1 flex gap-3 min-h-0 overflow-hidden mb-1.5 md:mb-2.5">
                 {/* Left details */}
                 <div className="flex-1 bg-neutral-800 rounded-xl p-2.5 md:p-3.5 border border-neutral-700 flex flex-col overflow-hidden shadow-lg">
                   <div className="flex justify-between items-center shrink-0 border-b border-neutral-700/50 pb-2">
@@ -1009,13 +1009,13 @@ export default function Home() {
               </div>
 
               {/* Bottom part: Action buttons (Compact row but with large buttons) */}
-              <div className="h-16 shrink-0 flex gap-3">
+              <div className="h-12 md:h-16 shrink-0 flex gap-3">
                 {showPlacementConfirm ? (
-                  <div className="w-full flex items-center justify-between gap-4 bg-neutral-800/80 px-4 py-2 rounded-xl border border-neutral-700 h-full">
-                    <p className="font-bold text-xs md:text-sm text-amber-400 leading-snug truncate max-w-[50%]">
+                  <div className="w-full flex items-center justify-between gap-4 bg-neutral-800/80 px-3 md:px-4 py-1 md:py-2 rounded-xl border border-neutral-700 h-full">
+                    <p className="font-bold text-[10px] md:text-sm text-amber-400 leading-snug truncate max-w-[50%]">
                       Товар размещен правильно по габаритам и категории?
                     </p>
-                    <div className="flex gap-2 shrink-0 h-full py-1">
+                    <div className="flex gap-2 shrink-0 h-full py-0.5 md:py-1">
                       <button
                         onClick={() => handleUpdate("Подтвержден", "Да")}
                         className="px-10 h-full rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 bg-green-600 hover:bg-green-500 text-white font-black text-sm shadow-md"
