@@ -128,8 +128,12 @@ export default function Home() {
     if (prodId) {
       setLoadingImage(true);
       setProductImage("");
-      fetch(`/api/product?id=${prodId}`)
-        .then(res => res.json())
+      // Try direct fetch first (works if the user has a CORS bypass extension and has active Uzum cookies)
+      fetch(`https://api.uzum.uz/api/v2/product/${prodId}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Direct fetch failed");
+          return res.json();
+        })
         .then(resData => {
           if (resData.success && resData.payload && resData.payload.data) {
             const data = resData.payload.data;
@@ -142,14 +146,35 @@ export default function Home() {
               setDisplayProductName(data.title);
             }
           }
+          setLoadingImage(false);
         })
-        .catch(err => {
-          console.error("Error fetching product details:", err);
-          if (!currentItem.name) {
-            setDisplayProductName("Наименование не найдено (используйте ссылку 'Товар на Uzum' ниже)");
-          }
-        })
-        .finally(() => setLoadingImage(false));
+        .catch(() => {
+          // If direct fetch fails (due to CORS), fallback to our Vercel backend proxy
+          fetch(`/api/product?id=${prodId}`)
+            .then(res => res.json())
+            .then(resData => {
+              if (resData.success && resData.payload && resData.payload.data) {
+                const data = resData.payload.data;
+                if (data.photos && data.photos.length > 0) {
+                  const photoObj = data.photos[0].photo;
+                  const imgUrl = photoObj["480"]?.high || photoObj["240"]?.high || "";
+                  setProductImage(imgUrl);
+                }
+                if (data.title && !currentItem.name) {
+                  setDisplayProductName(data.title);
+                }
+              } else {
+                throw new Error("Proxy fetch failed");
+              }
+            })
+            .catch(err => {
+              console.error("Error fetching product details:", err);
+              if (!currentItem.name) {
+                setDisplayProductName("Наименование не найдено (используйте ссылку 'Товар на Uzum' ниже)");
+              }
+            })
+            .finally(() => setLoadingImage(false));
+        });
     } else {
       setProductImage("");
     }
