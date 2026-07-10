@@ -62,9 +62,7 @@ export default function Home() {
   const [statsError, setStatsError] = useState("");
   const [selectedDateStr, setSelectedDateStr] = useState("");
 
-  const [productImage, setProductImage] = useState("");
-  const [loadingImage, setLoadingImage] = useState(false);
-  const [displayProductName, setDisplayProductName] = useState("");
+
 
   const [isScanned, setIsScanned] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
@@ -109,76 +107,7 @@ export default function Home() {
     setShowPlacementConfirm(false);
   }, [currentItem]);
 
-  useEffect(() => {
-    if (!currentItem) {
-      setProductImage("");
-      setDisplayProductName("");
-      return;
-    }
 
-    setDisplayProductName(currentItem.name || "");
-
-    if (currentItem.image) {
-      setProductImage(currentItem.image);
-      return;
-    }
-
-    const prodId = getProductId(currentItem);
-
-    if (prodId) {
-      setLoadingImage(true);
-      setProductImage("");
-      // Try direct fetch first (works if the user has a CORS bypass extension and has active Uzum cookies)
-      fetch(`https://api.uzum.uz/api/v2/product/${prodId}`)
-        .then(res => {
-          if (!res.ok) throw new Error("Direct fetch failed");
-          return res.json();
-        })
-        .then(resData => {
-          if (resData.success && resData.payload && resData.payload.data) {
-            const data = resData.payload.data;
-            if (data.photos && data.photos.length > 0) {
-              const photoObj = data.photos[0].photo;
-              const imgUrl = photoObj["480"]?.high || photoObj["240"]?.high || "";
-              setProductImage(imgUrl);
-            }
-            if (data.title && !currentItem.name) {
-              setDisplayProductName(data.title);
-            }
-          }
-          setLoadingImage(false);
-        })
-        .catch(() => {
-          // If direct fetch fails (due to CORS), fallback to our Vercel backend proxy
-          fetch(`/api/product?id=${prodId}`)
-            .then(res => res.json())
-            .then(resData => {
-              if (resData.success && resData.payload && resData.payload.data) {
-                const data = resData.payload.data;
-                if (data.photos && data.photos.length > 0) {
-                  const photoObj = data.photos[0].photo;
-                  const imgUrl = photoObj["480"]?.high || photoObj["240"]?.high || "";
-                  setProductImage(imgUrl);
-                }
-                if (data.title && !currentItem.name) {
-                  setDisplayProductName(data.title);
-                }
-              } else {
-                throw new Error("Proxy fetch failed");
-              }
-            })
-            .catch(err => {
-              console.error("Error fetching product details:", err);
-              if (!currentItem.name) {
-                setDisplayProductName("Наименование не найдено (используйте ссылку 'Товар на Uzum' ниже)");
-              }
-            })
-            .finally(() => setLoadingImage(false));
-        });
-    } else {
-      setProductImage("");
-    }
-  }, [currentItem]);
 
   useEffect(() => {
     if (!currentItem || !isLoggedIn) return;
@@ -1050,11 +979,11 @@ export default function Home() {
                         <span className="block text-neutral-400 text-xs font-bold uppercase">Штрихкод (Требуется)</span>
                         <span className="font-mono text-base font-bold text-white block mt-0.5 truncate">{currentItem.barcode}</span>
                       </div>
-                      {(displayProductName || currentProductId) && (
+                      {(currentItem.name || currentItem.barcode || currentProductId) && (
                         <a 
                           href={currentProductId 
                             ? `https://uzum.uz/uz/product/${currentProductId}` 
-                            : `https://uzum.uz/uz/search?query=${encodeURIComponent(displayProductName)}`} 
+                            : `https://uzum.uz/uz/search?query=${encodeURIComponent(currentItem.name || currentItem.barcode)}`} 
                           target="_blank" 
                           rel="noopener noreferrer" 
                           className="text-[11px] text-blue-400 hover:text-blue-300 underline block mt-1"
@@ -1073,28 +1002,10 @@ export default function Home() {
                   <div className="bg-neutral-900/40 rounded-xl p-2.5 border border-neutral-700/30 flex-1 overflow-y-auto min-h-0">
                     <span className="block text-neutral-400 text-xs font-bold uppercase tracking-wider mb-1">Наименование товара</span>
                     <p className="text-base md:text-lg font-bold text-neutral-100 leading-snug break-words">
-                      {displayProductName || (currentProductId ? "Загрузка наименования..." : "Наименование не указано")}
+                      {currentItem.name || "Наименование не указано"}
                     </p>
                   </div>
                 </div>
-
-                {/* Right product image */}
-                {(productImage || loadingImage) && (
-                  <div className="w-[30%] bg-neutral-800 rounded-xl border border-neutral-700 flex items-center justify-center overflow-hidden shadow-lg p-1.5 relative shrink-0">
-                    {loadingImage ? (
-                      <div className="animate-pulse flex flex-col items-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-amber-400 mb-2"></div>
-                        <span className="text-[10px] text-neutral-400">Фото...</span>
-                      </div>
-                    ) : (
-                      <img 
-                        src={productImage} 
-                        alt="Product" 
-                        className="max-w-full max-h-full object-contain rounded-lg"
-                      />
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Bottom part: Action buttons (Compact row but with large buttons) */}
