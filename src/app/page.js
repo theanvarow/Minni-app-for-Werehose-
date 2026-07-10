@@ -947,7 +947,7 @@ export default function Home() {
               {/* Top part: Item Info (Larger fonts, scrollable name, optional image) */}
               <div className="flex-1 flex gap-3 min-h-0 overflow-hidden mb-1.5 md:mb-2.5">
                 {/* Left details */}
-                <div className="flex-1 bg-neutral-800 rounded-xl p-2.5 md:p-3.5 border border-neutral-700 flex flex-col overflow-hidden shadow-lg">
+                <div className="flex-1 bg-neutral-800 rounded-xl p-2.5 md:p-3.5 border border-neutral-700 flex flex-col overflow-y-auto shadow-lg">
                   <div className="flex justify-between items-center shrink-0 border-b border-neutral-700/50 pb-2">
                     <div>
                       <p className="text-neutral-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">Ячейка</p>
@@ -999,7 +999,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="bg-neutral-900/40 rounded-xl p-2 md:p-2.5 border border-neutral-700/30 flex-1 min-h-[90px] md:min-h-[140px] overflow-y-auto">
+                  <div className="bg-neutral-900/40 rounded-xl p-2 md:p-2.5 border border-neutral-700/30 shrink-0 mt-1">
                     <span className="block text-neutral-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">Наименование товара</span>
                     <p className="text-sm md:text-base font-bold text-neutral-100 leading-snug break-words">
                       {currentItem.name || "Наименование не указано"}
