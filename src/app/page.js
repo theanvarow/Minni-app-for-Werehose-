@@ -947,37 +947,37 @@ export default function Home() {
               {/* Top part: Item Info (Larger fonts, scrollable name, optional image) */}
               <div className="flex-1 flex gap-3 min-h-0 overflow-hidden mb-2.5">
                 {/* Left details */}
-                <div className="flex-1 bg-neutral-800 rounded-xl p-3.5 border border-neutral-700 flex flex-col justify-between overflow-hidden shadow-lg">
+                <div className="flex-1 bg-neutral-800 rounded-xl p-2.5 md:p-3.5 border border-neutral-700 flex flex-col overflow-hidden shadow-lg">
                   <div className="flex justify-between items-center shrink-0 border-b border-neutral-700/50 pb-2">
                     <div>
-                      <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider">Ячейка</p>
-                      <h1 className="text-4xl md:text-5xl font-black text-amber-400 leading-none truncate mt-0.5">{currentItem.location}</h1>
+                      <p className="text-neutral-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">Ячейка</p>
+                      <h1 className="text-3xl md:text-5xl font-black text-amber-400 leading-none truncate mt-0.5">{currentItem.location}</h1>
                     </div>
 
                     {/* Barcode scanning status indicator */}
                     <div className="flex items-center gap-2">
                       {isScanned ? (
-                        <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-3 py-1.5 rounded-lg font-black uppercase tracking-wider">
+                        <span className="text-[10px] md:text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-2 md:px-3 py-1 md:py-1.5 rounded-lg font-black uppercase tracking-wider">
                           🟢 Сканирован
                         </span>
                       ) : (
-                        <span className="text-[11px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider animate-pulse">
+                        <span className="text-[9px] md:text-[11px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 md:px-2.5 py-1 md:py-1.5 rounded-lg font-black uppercase tracking-wider animate-pulse">
                           🔴 Ожидание сканирования
                         </span>
                       )}
                     </div>
 
-                    <div className="bg-blue-500/10 rounded-lg px-3.5 py-1 border border-blue-500/20 text-center shrink-0">
-                      <span className="block text-neutral-400 text-[10px] font-bold uppercase">Кол-во</span>
-                      <span className="text-xl font-black text-blue-400 block mt-0.5">{currentItem.qty} шт</span>
+                    <div className="bg-blue-500/10 rounded-lg px-2 md:px-3.5 py-0.5 md:py-1 border border-blue-500/20 text-center shrink-0">
+                      <span className="block text-neutral-400 text-[9px] md:text-[10px] font-bold uppercase">Кол-во</span>
+                      <span className="text-lg md:text-xl font-black text-blue-400 block mt-0.5">{currentItem.qty} шт</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 my-2 shrink-0">
                     <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 flex flex-col justify-between truncate">
                       <div>
-                        <span className="block text-neutral-400 text-xs font-bold uppercase">Штрихкод (Требуется)</span>
-                        <span className="font-mono text-base font-bold text-white block mt-0.5 truncate">{currentItem.barcode}</span>
+                        <span className="block text-neutral-400 text-[10px] md:text-xs font-bold uppercase">Штрихкод (Требуется)</span>
+                        <span className="font-mono text-sm md:text-base font-bold text-white block mt-0.5 truncate">{currentItem.barcode}</span>
                       </div>
                       {(currentItem.name || currentItem.barcode || currentProductId) && (
                         <a 
@@ -986,7 +986,7 @@ export default function Home() {
                             : `https://uzum.uz/uz/search?query=${encodeURIComponent(currentItem.name || currentItem.barcode)}`} 
                           target="_blank" 
                           rel="noopener noreferrer" 
-                          className="text-[11px] text-blue-400 hover:text-blue-300 underline block mt-1"
+                          className="text-[10px] md:text-[11px] text-blue-400 hover:text-blue-300 underline block mt-1"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {currentProductId ? "🔍 Товар на Uzum" : "🔍 Поиск на Uzum"}
@@ -994,14 +994,14 @@ export default function Home() {
                       )}
                     </div>
                     <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 flex flex-col justify-center truncate">
-                      <span className="block text-neutral-400 text-xs font-bold uppercase">Категория</span>
-                      <span className="text-base font-bold text-white block mt-1 truncate">{currentItem.category}</span>
+                      <span className="block text-neutral-400 text-[10px] md:text-xs font-bold uppercase">Категория</span>
+                      <span className="text-sm md:text-base font-bold text-white block mt-1 truncate">{currentItem.category}</span>
                     </div>
                   </div>
 
-                  <div className="bg-neutral-900/40 rounded-xl p-2.5 border border-neutral-700/30 flex-1 overflow-y-auto min-h-0">
-                    <span className="block text-neutral-400 text-xs font-bold uppercase tracking-wider mb-1">Наименование товара</span>
-                    <p className="text-base md:text-lg font-bold text-neutral-100 leading-snug break-words">
+                  <div className="bg-neutral-900/40 rounded-xl p-2 md:p-2.5 border border-neutral-700/30 flex-1 min-h-[90px] md:min-h-[140px] overflow-y-auto">
+                    <span className="block text-neutral-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">Наименование товара</span>
+                    <p className="text-sm md:text-base font-bold text-neutral-100 leading-snug break-words">
                       {currentItem.name || "Наименование не указано"}
                     </p>
                   </div>
