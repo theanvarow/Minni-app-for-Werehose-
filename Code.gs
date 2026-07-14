@@ -289,7 +289,7 @@ function getGotovaStats(ss) {
     }
     
     if (!dateObj || isNaN(dateObj.getTime())) {
-      continue;
+      dateObj = new Date();
     }
     
     var year = dateObj.getFullYear();
@@ -342,7 +342,7 @@ function getGotovaStats(ss) {
       var normStatus = status.toLowerCase();
       if (normStatus.indexOf("подтвержд") !== -1 || normStatus === "подтвержден" || normStatus === "да") {
         s.confirmed += 1;
-      } else if (normStatus.indexOf("отсутств") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
+      } else if (normStatus.indexOf("отсут") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
         s.missing += 1;
       }
       
@@ -360,7 +360,7 @@ function getGotovaStats(ss) {
         s.shifts[shiftName].total += 1;
         if (normStatus.indexOf("подтвержд") !== -1 || normStatus === "подтвержден" || normStatus === "да") {
           s.shifts[shiftName].confirmed += 1;
-        } else if (normStatus.indexOf("отсутств") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
+        } else if (normStatus.indexOf("отсут") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
           s.shifts[shiftName].missing += 1;
         }
       }
@@ -372,7 +372,7 @@ function getGotovaStats(ss) {
         s.users[userName].total += 1;
         if (normStatus.indexOf("подтвержд") !== -1 || normStatus === "подтвержден" || normStatus === "да") {
           s.users[userName].confirmed += 1;
-        } else if (normStatus.indexOf("отсутств") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
+        } else if (normStatus.indexOf("отсут") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
           s.users[userName].missing += 1;
         }
       }
