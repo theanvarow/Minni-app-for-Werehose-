@@ -342,7 +342,7 @@ function getGotovaStats(ss) {
       var normStatus = status.toLowerCase();
       if (normStatus.indexOf("подтвержд") !== -1 || normStatus === "подтвержден" || normStatus === "да") {
         s.confirmed += 1;
-      } else if (normStatus.indexOf("отсут") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
+      } else if (normStatus.indexOf("отсут") !== -1 || normStatus.indexOf("нет") !== -1 || normStatus.indexOf("не ") !== -1 || normStatus.indexOf("ненайд") !== -1) {
         s.missing += 1;
       }
       
@@ -360,7 +360,7 @@ function getGotovaStats(ss) {
         s.shifts[shiftName].total += 1;
         if (normStatus.indexOf("подтвержд") !== -1 || normStatus === "подтвержден" || normStatus === "да") {
           s.shifts[shiftName].confirmed += 1;
-        } else if (normStatus.indexOf("отсут") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
+        } else if (normStatus.indexOf("отсут") !== -1 || normStatus.indexOf("нет") !== -1 || normStatus.indexOf("не ") !== -1 || normStatus.indexOf("ненайд") !== -1) {
           s.shifts[shiftName].missing += 1;
         }
       }
@@ -372,7 +372,7 @@ function getGotovaStats(ss) {
         s.users[userName].total += 1;
         if (normStatus.indexOf("подтвержд") !== -1 || normStatus === "подтвержден" || normStatus === "да") {
           s.users[userName].confirmed += 1;
-        } else if (normStatus.indexOf("отсут") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
+        } else if (normStatus.indexOf("отсут") !== -1 || normStatus.indexOf("нет") !== -1 || normStatus.indexOf("не ") !== -1 || normStatus.indexOf("ненайд") !== -1) {
           s.users[userName].missing += 1;
         }
       }
