@@ -667,13 +667,6 @@ export default function Home() {
     const currentMonth = selectedGotovaMonth || (monthlyKeys.length > 0 ? monthlyKeys[0] : "");
     const monthlyData = currentMonth && gotovaStatsData.monthly ? gotovaStatsData.monthly[currentMonth] : null;
 
-    // Filter active days in selected month
-    const dailyData = gotovaStatsData && gotovaStatsData.daily ? gotovaStatsData.daily : {};
-    const activeDays = Object.keys(dailyData)
-      .filter(day => day.startsWith(currentMonth))
-      .sort();
-
-    // Map month names to Russian
     const formatMonthName = (mKey) => {
       if (!mKey) return "";
       const [year, month] = mKey.split("-");
@@ -683,14 +676,14 @@ export default function Home() {
 
     return (
       <div className="fixed inset-0 bg-neutral-950/85 backdrop-blur-md z-[9999] flex items-center justify-center p-2 sm:p-4 overflow-y-auto font-sans">
-        <div className="w-full max-w-4xl bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-2xl flex flex-col max-h-[96vh] overflow-hidden text-left">
+        <div className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-2xl flex flex-col max-h-[96vh] overflow-hidden text-left">
           {/* Header */}
           <div className="flex justify-between items-center border-b border-neutral-800 pb-2.5 mb-3 shrink-0">
             <div className="flex items-center gap-2">
               <span className="text-xl sm:text-2xl">📈</span>
               <div>
                 <h2 className="text-sm sm:text-base font-black text-white leading-none">Аналитика Готовых Отчетов</h2>
-                <p className="text-[10px] text-neutral-400 mt-1">Обобщенная статистика из листа &apos;готова&apos;</p>
+                <p className="text-[10px] text-neutral-400 mt-1">Обобщенная статистика из листа &apos;Готовы&apos;</p>
               </div>
             </div>
             <button
@@ -752,7 +745,7 @@ export default function Home() {
 
             {!loadingGotovaStats && !gotovaStatsError && !monthlyData && (
               <div className="py-16 text-center text-neutral-500 text-xs">
-                Нет обработанных данных в листе &apos;готова&apos;.
+                Нет обработанных данных в листе &apos;Готовы&apos;.
               </div>
             )}
 
@@ -763,91 +756,86 @@ export default function Home() {
                 <div className="grid grid-cols-4 gap-2 md:gap-3 shrink-0">
                   {/* Card 1: Total */}
                   <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-2.5 flex flex-col justify-between">
-                    <span className="text-[9px] text-purple-400 font-black uppercase tracking-wider">Всего SKU</span>
+                    <span className="text-[9px] text-purple-400 font-black uppercase tracking-wider">Общий объем</span>
                     <span className="text-xl md:text-2xl font-black text-white mt-1 leading-none">
                       {monthlyData.total}
                     </span>
-                    <span className="text-[8px] text-neutral-400 mt-1">Обработано за месяц</span>
+                    <span className="text-[8px] text-neutral-400 mt-1">Всего сделано (SKU)</span>
                   </div>
 
                   {/* Card 2: Confirmed */}
                   <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-2.5 flex flex-col justify-between">
-                    <span className="text-[9px] text-emerald-400 font-black uppercase tracking-wider">Подтверждено</span>
+                    <span className="text-[9px] text-emerald-400 font-black uppercase tracking-wider">Найденные</span>
                     <span className="text-xl md:text-2xl font-black text-emerald-400 mt-1 leading-none">
                       {monthlyData.confirmed}
                     </span>
                     <span className="text-[8px] text-neutral-400 mt-1">
-                      {monthlyData.total > 0 ? Math.round((monthlyData.confirmed / monthlyData.total) * 100) : 0}% от общего
+                      {monthlyData.total > 0 ? Math.round((monthlyData.confirmed / monthlyData.total) * 100) : 0}% найдено
                     </span>
                   </div>
 
                   {/* Card 3: Missing */}
                   <div className="bg-red-950/20 border border-red-500/20 rounded-xl p-2.5 flex flex-col justify-between">
-                    <span className="text-[9px] text-red-400 font-black uppercase tracking-wider">Отсутствует</span>
+                    <span className="text-[9px] text-red-400 font-black uppercase tracking-wider">Не найденные</span>
                     <span className="text-xl md:text-2xl font-black text-red-400 mt-1 leading-none">
                       {monthlyData.missing}
                     </span>
                     <span className="text-[8px] text-neutral-400 mt-1">
-                      {monthlyData.total > 0 ? Math.round((monthlyData.missing / monthlyData.total) * 100) : 0}% от общего
+                      {monthlyData.total > 0 ? Math.round((monthlyData.missing / monthlyData.total) * 100) : 0}% не найдено
                     </span>
                   </div>
 
                   {/* Card 4: Placement accuracy */}
                   <div className="bg-blue-950/20 border border-blue-500/20 rounded-xl p-2.5 flex flex-col justify-between">
-                    <span className="text-[9px] text-blue-400 font-black uppercase tracking-wider">Точность полки</span>
+                    <span className="text-[9px] text-blue-400 font-black uppercase tracking-wider">Верно размещено</span>
                     <span className="text-xl md:text-2xl font-black text-blue-400 mt-1 leading-none">
-                      {monthlyData.confirmed > 0 ? Math.round((monthlyData.placementCorrect / monthlyData.confirmed) * 100) : 0}%
+                      {monthlyData.placementCorrect}
                     </span>
                     <span className="text-[8px] text-neutral-400 mt-1">
-                      {monthlyData.placementCorrect} из {monthlyData.confirmed} верно
+                      {monthlyData.confirmed > 0 ? Math.round((monthlyData.placementCorrect / monthlyData.confirmed) * 100) : 0}% точность полки
                     </span>
                   </div>
                 </div>
 
-                {/* Charts section: Left side-by-side bar chart, right trend line */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {/* Shifts section: bar chart + table list */}
+                <div className="bg-neutral-850 border border-neutral-800 rounded-xl p-3 flex flex-col">
+                  <h4 className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider mb-2">📊 Статистика по сменам</h4>
                   
-                  {/* Shift comparison SVG Bar Chart */}
-                  <div className="bg-neutral-850 border border-neutral-800 rounded-xl p-3 flex flex-col">
-                    <h4 className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider mb-2">📊 Продуктивность смен (SKU)</h4>
-                    <div className="flex-1 flex items-center justify-center min-h-[160px]">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                    {/* Left: SVG Bar Chart */}
+                    <div className="flex items-center justify-center min-h-[140px]">
                       {(() => {
                         const shiftData = monthlyData.shifts || {};
-                        const shiftKeys = Object.keys(shiftData).sort();
-                        if (shiftKeys.length === 0) {
-                          return <span className="text-[10px] text-neutral-500">Нет данных по сменам</span>;
-                        }
-
-                        const maxShiftVal = Math.max(...Object.values(shiftData).map(s => s.total), 1);
-                        const svgWidth = 400;
-                        const svgHeight = 150;
-                        const chartBottom = 120;
-                        const chartHeight = 100;
+                        const shiftKeys = ["1 смена", "2 смена", "3 смена", "4 смена"];
+                        const maxShiftVal = Math.max(...shiftKeys.map(s => (shiftData[s] ? shiftData[s].total : 0)), 1);
+                        const svgWidth = 280;
+                        const svgHeight = 130;
+                        const chartBottom = 105;
+                        const chartHeight = 80;
                         const spacing = svgWidth / (shiftKeys.length + 1);
 
                         return (
-                          <svg className="w-full h-full max-h-[160px]" viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
+                          <svg className="w-full h-full max-h-[140px]" viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
                             {/* Grid lines */}
-                            {[0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                            {[0.33, 0.66, 1].map((ratio, idx) => {
                               const y = chartBottom - ratio * chartHeight;
                               const val = Math.round(ratio * maxShiftVal);
                               return (
                                 <g key={idx}>
-                                  <line x1="40" y1={y} x2={svgWidth - 20} y2={y} stroke="#262626" strokeWidth="1" strokeDasharray="3 3" />
-                                  <text x="32" y={y + 3} textAnchor="end" fill="#525252" className="text-[8px] font-mono">{val}</text>
+                                  <line x1="30" y1={y} x2={svgWidth - 10} y2={y} stroke="#262626" strokeWidth="1" strokeDasharray="3 3" />
+                                  <text x="25" y={y + 3} textAnchor="end" fill="#525252" className="text-[8px] font-mono">{val}</text>
                                 </g>
                               );
                             })}
 
-                            {/* Base line */}
-                            <line x1="40" y1={chartBottom} x2={svgWidth - 20} y2={chartBottom} stroke="#404040" strokeWidth="1" />
+                            <line x1="30" y1={chartBottom} x2={svgWidth - 10} y2={chartBottom} stroke="#404040" strokeWidth="1" />
 
-                            {/* Bars */}
                             {shiftKeys.map((sName, idx) => {
-                              const total = shiftData[sName].total || 0;
-                              const confirmed = shiftData[sName].confirmed || 0;
-                              const barX = 40 + (idx + 0.5) * spacing;
-                              const barW = 28;
+                              const sStats = shiftData[sName] || { total: 0, confirmed: 0, missing: 0 };
+                              const total = sStats.total || 0;
+                              const confirmed = sStats.confirmed || 0;
+                              const barX = 30 + (idx + 0.5) * spacing;
+                              const barW = 20;
 
                               const hTotal = (total / maxShiftVal) * chartHeight;
                               const yTotal = chartBottom - hTotal;
@@ -857,19 +845,11 @@ export default function Home() {
 
                               return (
                                 <g key={idx}>
-                                  {/* Total SKU Bar (Indigo) */}
-                                  <rect x={barX - barW/2} y={yTotal} width={barW} height={hTotal} fill="#4f46e5" rx="3" className="opacity-80 hover:opacity-100 transition" />
-                                  {/* Confirmed SKU Bar (Emerald - nested/overlapping inside total) */}
-                                  <rect x={barX - barW/2 + 2} y={yConf} width={barW - 4} height={hConf} fill="#10b981" rx="2" className="opacity-90 hover:opacity-100 transition" />
+                                  <rect x={barX - barW/2} y={yTotal} width={barW} height={hTotal} fill="#4f46e5" rx="2" className="opacity-80" />
+                                  <rect x={barX - barW/2 + 1.5} y={yConf} width={barW - 3} height={hConf} fill="#10b981" rx="1.5" className="opacity-95" />
 
-                                  {/* Values on top */}
                                   <text x={barX} y={yTotal - 3} textAnchor="middle" fill="#a3a3a3" className="text-[8px] font-bold font-mono">{total}</text>
-                                  {confirmed > 0 && confirmed !== total && (
-                                    <text x={barX} y={yConf + 9} textAnchor="middle" fill="#ffffff" className="text-[8px] font-bold font-mono">{confirmed}</text>
-                                  )}
-
-                                  {/* Shift name label */}
-                                  <text x={barX} y={chartBottom + 14} textAnchor="middle" fill="#d4d4d4" className="text-[9px] font-extrabold">{sName.replace(" смена", " см.")}</text>
+                                  <text x={barX} y={chartBottom + 12} textAnchor="middle" fill="#d4d4d4" className="text-[9px] font-extrabold">{sName.replace(" смена", " см.")}</text>
                                 </g>
                               );
                             })}
@@ -877,134 +857,41 @@ export default function Home() {
                         );
                       })()}
                     </div>
-                  </div>
 
-                  {/* Daily productivity linear Trend Chart */}
-                  <div className="bg-neutral-850 border border-neutral-800 rounded-xl p-3 flex flex-col">
-                    <h4 className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider mb-2">📈 Дневная динамика выполнения (SKU)</h4>
-                    <div className="flex-1 flex items-center justify-center min-h-[160px]">
-                      {activeDays.length === 0 ? (
-                        <span className="text-[10px] text-neutral-500">Нет ежедневных данных за этот период</span>
-                      ) : (
-                        (() => {
-                          const maxDailyVal = Math.max(...activeDays.map(day => dailyData[day].total), 10);
-                          const svgWidth = 400;
-                          const svgHeight = 150;
-                          const chartBottom = 120;
-                          const chartHeight = 100;
-                          const chartWidth = 340;
-                          const startX = 45;
+                    {/* Right: Detailed Table */}
+                    <div>
+                      {(() => {
+                        const shiftData = monthlyData.shifts || {};
+                        const shiftKeys = ["1 смена", "2 смена", "3 смена", "4 смена"];
 
-                          const points = activeDays.map((day, idx) => {
-                            const total = dailyData[day].total || 0;
-                            const x = startX + (idx / (activeDays.length - 1 || 1)) * chartWidth;
-                            const y = chartBottom - (total / maxDailyVal) * chartHeight;
-                            return { x, y, total, dayStr: day.split("-")[2] };
-                          });
-
-                          const linePath = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-                          const areaPath = points.length > 0 
-                            ? `${linePath} L ${points[points.length - 1].x} ${chartBottom} L ${points[0].x} ${chartBottom} Z` 
-                            : "";
-
-                          return (
-                            <svg className="w-full h-full max-h-[160px]" viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
-                              {/* Gradient definition */}
-                              <defs>
-                                <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#a855f7" stopOpacity="0.4" />
-                                  <stop offset="100%" stopColor="#a855f7" stopOpacity="0.0" />
-                                </linearGradient>
-                              </defs>
-
-                              {/* Y Grid lines */}
-                              {[0.25, 0.5, 0.75, 1].map((ratio, idx) => {
-                                const y = chartBottom - ratio * chartHeight;
-                                const val = Math.round(ratio * maxDailyVal);
+                        return (
+                          <table className="w-full text-[10px] text-neutral-300 border-collapse">
+                            <thead>
+                              <tr className="border-b border-neutral-800 text-left text-neutral-500 uppercase tracking-wider">
+                                <th className="pb-1.5 font-black">Смена</th>
+                                <th className="pb-1.5 font-black text-center">Всего SKU</th>
+                                <th className="pb-1.5 font-black text-center text-emerald-400">Найдено</th>
+                                <th className="pb-1.5 font-black text-center text-red-400">Не найдено</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {shiftKeys.map((sName) => {
+                                const sStats = shiftData[sName] || { total: 0, confirmed: 0, missing: 0 };
                                 return (
-                                  <g key={idx}>
-                                    <line x1={startX} y1={y} x2={svgWidth - 15} y2={y} stroke="#262626" strokeWidth="1" strokeDasharray="3 3" />
-                                    <text x="38" y={y + 3} textAnchor="end" fill="#525252" className="text-[8px] font-mono">{val}</text>
-                                  </g>
+                                  <tr key={sName} className="border-b border-neutral-800/40 hover:bg-neutral-800/10">
+                                    <td className="py-1.5 font-bold text-white">{sName}</td>
+                                    <td className="py-1.5 text-center font-mono font-bold">{sStats.total}</td>
+                                    <td className="py-1.5 text-center text-emerald-400 font-mono font-bold">{sStats.confirmed}</td>
+                                    <td className="py-1.5 text-center text-red-400 font-mono font-bold">{sStats.missing || (sStats.total - sStats.confirmed)}</td>
+                                  </tr>
                                 );
                               })}
-
-                              {/* Base line */}
-                              <line x1={startX} y1={chartBottom} x2={svgWidth - 15} y2={chartBottom} stroke="#404040" strokeWidth="1" />
-
-                              {/* Area below trend line */}
-                              {areaPath && <path d={areaPath} fill="url(#purpleGradient)" />}
-
-                              {/* Trend line */}
-                              {linePath && <path d={linePath} fill="none" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
-
-                              {/* Interactive dots */}
-                              {points.map((p, idx) => (
-                                <g key={idx}>
-                                  <circle cx={p.x} cy={p.y} r="3" fill="#c084fc" stroke="#1f2937" strokeWidth="1" />
-                                  {(points.length < 15 || idx % 3 === 0 || idx === points.length - 1) && (
-                                    <text x={p.x} y={p.y - 6} textAnchor="middle" fill="#d4d4d4" className="text-[7px] font-mono font-bold">{p.total}</text>
-                                  )}
-                                </g>
-                              ))}
-
-                              {/* X Axis dates (labels on first, mid, last days) */}
-                              {points.filter((_, i) => i === 0 || i === points.length - 1 || i === Math.floor(points.length / 2)).map((p, idx) => (
-                                <text key={idx} x={p.x} y={chartBottom + 12} textAnchor="middle" fill="#737373" className="text-[8px] font-mono font-bold">
-                                  {p.dayStr}
-                                </text>
-                              ))}
-                            </svg>
-                          );
-                        })()
-                      )}
+                            </tbody>
+                          </table>
+                        );
+                      })()}
                     </div>
                   </div>
-
-                </div>
-
-                {/* Leaderboard Section */}
-                <div className="bg-neutral-850 border border-neutral-800 rounded-xl p-3 shrink-0">
-                  <h4 className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider mb-2">🏆 Лучшие сотрудники месяца</h4>
-                  {(() => {
-                    const userData = monthlyData.users || {};
-                    const sortedUsers = Object.keys(userData).sort((a, b) => userData[b].total - userData[a].total);
-
-                    if (sortedUsers.length === 0) {
-                      return <span className="text-[10px] text-neutral-500">Нет данных о работе сотрудников</span>;
-                    }
-
-                    return (
-                      <div className="max-h-[140px] overflow-y-auto">
-                        <table className="w-full text-[10px] text-neutral-300 border-collapse">
-                          <thead>
-                            <tr className="border-b border-neutral-800 text-left text-neutral-500 uppercase tracking-wider">
-                              <th className="pb-1.5 font-black">Рейтинг</th>
-                              <th className="pb-1.5 font-black">Ф.И.О. сотрудника</th>
-                              <th className="pb-1.5 font-black text-center">Всего SKU</th>
-                              <th className="pb-1.5 font-black text-center text-emerald-400">Подтверждено</th>
-                              <th className="pb-1.5 font-black text-center text-red-400">Отсутствует</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {sortedUsers.map((uName, idx) => {
-                              const uStats = userData[uName];
-                              const rankEmoji = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`;
-                              return (
-                                <tr key={uName} className="border-b border-neutral-800/40 hover:bg-neutral-800/20">
-                                  <td className="py-1.5 font-bold">{rankEmoji}</td>
-                                  <td className="py-1.5 font-bold text-white truncate max-w-[180px]">{uName}</td>
-                                  <td className="py-1.5 text-center font-mono font-bold">{uStats.total}</td>
-                                  <td className="py-1.5 text-center text-emerald-400 font-mono font-semibold">{uStats.confirmed}</td>
-                                  <td className="py-1.5 text-center text-red-400 font-mono font-semibold">{uStats.missing}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })()}
                 </div>
 
               </div>

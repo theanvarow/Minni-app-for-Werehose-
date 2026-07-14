@@ -271,6 +271,12 @@ function getGotovaStats(ss) {
     var placementCorrect = String(row[placementIdx] || "").trim();
     var userName = String(row[userIdx] || "").trim();
     var shiftName = String(row[shiftIdx] || "").trim();
+    if (shiftName) {
+      var digits = shiftName.match(/\d+/);
+      if (digits) {
+        shiftName = digits[0] + " смена";
+      }
+    }
     var dateVal = row[dateIdx];
     
     if (!status) continue;
@@ -301,7 +307,12 @@ function getGotovaStats(ss) {
         missing: 0,
         placementCorrect: 0,
         placementIncorrect: 0,
-        shifts: {},
+        shifts: {
+          "1 смена": { total: 0, confirmed: 0, missing: 0 },
+          "2 смена": { total: 0, confirmed: 0, missing: 0 },
+          "3 смена": { total: 0, confirmed: 0, missing: 0 },
+          "4 смена": { total: 0, confirmed: 0, missing: 0 }
+        },
         users: {}
       };
     }
@@ -314,7 +325,12 @@ function getGotovaStats(ss) {
         missing: 0,
         placementCorrect: 0,
         placementIncorrect: 0,
-        shifts: {},
+        shifts: {
+          "1 смена": { total: 0, confirmed: 0, missing: 0 },
+          "2 смена": { total: 0, confirmed: 0, missing: 0 },
+          "3 смена": { total: 0, confirmed: 0, missing: 0 },
+          "4 смена": { total: 0, confirmed: 0, missing: 0 }
+        },
         users: {}
       };
     }
