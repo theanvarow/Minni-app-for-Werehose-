@@ -225,12 +225,20 @@ function getStats(ss) {
 }
 
 function getGotovaStats(ss) {
-  var sheet = ss.getSheetByName("готова");
-  if (!sheet) {
-    sheet = ss.getSheetByName("gotova");
+  var sheets = ss.getSheets();
+  var sheet = null;
+  for (var s = 0; s < sheets.length; s++) {
+    var sName = sheets[s].getName().trim().toLowerCase();
+    if (sName === "готова" || sName === "gotova" || sName === "готово" || sName === "gotovo" || sName === "готовые" || sName === "ready") {
+      sheet = sheets[s];
+      break;
+    }
   }
+  
   if (!sheet) {
-    return { success: false, error: "Лист 'готова' не найден" };
+    // Return error showing what sheets were found so the user knows what we detected
+    var allNames = sheets.map(function(s) { return s.getName(); }).join(", ");
+    return { success: false, error: "Лист 'готова' не найден. Доступные листы: " + allNames };
   }
   
   var data = sheet.getDataRange().getValues();
