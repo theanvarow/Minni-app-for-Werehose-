@@ -377,6 +377,7 @@ export default function Home() {
           status, 
           userName, 
           shift: `${shift} смена`, 
+          shiftName: `${shift} смена`, 
           placementCorrect,
           timestamp: formattedTimestamp
         }),

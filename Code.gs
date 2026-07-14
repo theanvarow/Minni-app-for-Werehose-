@@ -99,7 +99,7 @@ function doPost(e) {
     var placementCorrect = postData.placementCorrect;
     var userName = postData.userName;
     var timestamp = postData.timestamp;
-    var shiftName = postData.shiftName;
+    var shiftName = postData.shiftName || postData.shift;
     
     if (!sheetName || !rowIndex) {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Параметры shift и rowIndex обязательны" }))
