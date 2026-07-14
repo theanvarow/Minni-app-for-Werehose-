@@ -229,7 +229,7 @@ function getGotovaStats(ss) {
   var sheet = null;
   for (var s = 0; s < sheets.length; s++) {
     var sName = sheets[s].getName().trim().toLowerCase();
-    if (sName === "готова" || sName === "gotova" || sName === "готово" || sName === "gotovo" || sName === "готовые" || sName === "ready") {
+    if (sName === "готова" || sName === "gotova" || sName === "готово" || sName === "gotovo" || sName === "готовые" || sName === "готовы" || sName === "gotovy" || sName === "ready") {
       sheet = sheets[s];
       break;
     }
