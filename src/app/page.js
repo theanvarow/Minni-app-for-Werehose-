@@ -62,6 +62,13 @@ export default function Home() {
   const [statsError, setStatsError] = useState("");
   const [selectedDateStr, setSelectedDateStr] = useState("");
 
+  // 'готова' Statistics states
+  const [showGotovaStats, setShowGotovaStats] = useState(false);
+  const [gotovaStatsData, setGotovaStatsData] = useState(null);
+  const [loadingGotovaStats, setLoadingGotovaStats] = useState(false);
+  const [gotovaStatsError, setGotovaStatsError] = useState("");
+  const [selectedGotovaMonth, setSelectedGotovaMonth] = useState("");
+
 
 
   const [isScanned, setIsScanned] = useState(false);
@@ -333,6 +340,28 @@ export default function Home() {
       setStatsError("Ошибка подключения к серверу");
     } finally {
       setLoadingStats(false);
+    }
+  };
+
+  const fetchGotovaStats = async () => {
+    setLoadingGotovaStats(true);
+    setGotovaStatsError("");
+    try {
+      const res = await fetch(`/api/inventory?action=gotova_stats&t=${Date.now()}`);
+      const data = await res.json();
+      if (data.success) {
+        setGotovaStatsData(data);
+        if (data.monthly && Object.keys(data.monthly).length > 0) {
+          const sortedMonths = Object.keys(data.monthly).sort((a, b) => b.localeCompare(a));
+          setSelectedGotovaMonth(sortedMonths[0]);
+        }
+      } else {
+        setGotovaStatsError(data.error || "Не удалось загрузить аналитику");
+      }
+    } catch (err) {
+      setGotovaStatsError("Ошибка подключения к серверу");
+    } finally {
+      setLoadingGotovaStats(false);
     }
   };
 
@@ -631,6 +660,374 @@ export default function Home() {
     );
   };
 
+  const renderGotovaStatsModal = () => {
+    if (!showGotovaStats) return null;
+
+    const monthlyKeys = gotovaStatsData && gotovaStatsData.monthly ? Object.keys(gotovaStatsData.monthly).sort((a, b) => b.localeCompare(a)) : [];
+    const currentMonth = selectedGotovaMonth || (monthlyKeys.length > 0 ? monthlyKeys[0] : "");
+    const monthlyData = currentMonth && gotovaStatsData.monthly ? gotovaStatsData.monthly[currentMonth] : null;
+
+    // Filter active days in selected month
+    const dailyData = gotovaStatsData && gotovaStatsData.daily ? gotovaStatsData.daily : {};
+    const activeDays = Object.keys(dailyData)
+      .filter(day => day.startsWith(currentMonth))
+      .sort();
+
+    // Map month names to Russian
+    const formatMonthName = (mKey) => {
+      if (!mKey) return "";
+      const [year, month] = mKey.split("-");
+      const monthsRu = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+      return `${monthsRu[parseInt(month) - 1]} ${year}`;
+    };
+
+    return (
+      <div className="fixed inset-0 bg-neutral-950/85 backdrop-blur-md z-[9999] flex items-center justify-center p-2 sm:p-4 overflow-y-auto font-sans">
+        <div className="w-full max-w-4xl bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-2xl flex flex-col max-h-[96vh] overflow-hidden text-left">
+          {/* Header */}
+          <div className="flex justify-between items-center border-b border-neutral-800 pb-2.5 mb-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xl sm:text-2xl">📈</span>
+              <div>
+                <h2 className="text-sm sm:text-base font-black text-white leading-none">Аналитика Готовых Отчетов</h2>
+                <p className="text-[10px] text-neutral-400 mt-1">Обобщенная статистика из листа &apos;готова&apos;</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowGotovaStats(false);
+                playSound("click");
+              }}
+              className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition active:scale-95"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Month Selector Filter */}
+          {!loadingGotovaStats && !gotovaStatsError && monthlyKeys.length > 0 && (
+            <div className="mb-3 bg-neutral-800/30 border border-neutral-800/80 p-2.5 rounded-xl flex items-center justify-between gap-3 shrink-0 text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className="text-neutral-400 font-semibold">Выберите месяц:</span>
+              </div>
+              <select
+                value={currentMonth}
+                onChange={(e) => {
+                  setSelectedGotovaMonth(e.target.value);
+                  playSound("click");
+                }}
+                className="bg-neutral-850 border border-neutral-700 rounded-lg px-2.5 py-1 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-bold text-[10px] cursor-pointer"
+              >
+                {monthlyKeys.map((mKey) => (
+                  <option key={mKey} value={mKey}>
+                    {formatMonthName(mKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto pr-1 min-h-0">
+            {loadingGotovaStats && (
+              <div className="py-16 flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-purple-500 mb-2"></div>
+                <p className="text-xs text-neutral-400 font-medium animate-pulse">Загрузка данных готовых отчетов...</p>
+              </div>
+            )}
+
+            {gotovaStatsError && (
+              <div className="py-12 text-center">
+                <p className="text-red-400 font-bold text-xs mb-3">⚠️ {gotovaStatsError}</p>
+                <button
+                  onClick={fetchGotovaStats}
+                  className="px-3.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-[10px] font-bold rounded-lg transition"
+                >
+                  Повторить попытку
+                </button>
+              </div>
+            )}
+
+            {!loadingGotovaStats && !gotovaStatsError && !monthlyData && (
+              <div className="py-16 text-center text-neutral-500 text-xs">
+                Нет обработанных данных в листе &apos;готова&apos;.
+              </div>
+            )}
+
+            {!loadingGotovaStats && !gotovaStatsError && monthlyData && (
+              <div className="flex flex-col gap-4">
+                
+                {/* Metric cards */}
+                <div className="grid grid-cols-4 gap-2 md:gap-3 shrink-0">
+                  {/* Card 1: Total */}
+                  <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-2.5 flex flex-col justify-between">
+                    <span className="text-[9px] text-purple-400 font-black uppercase tracking-wider">Всего SKU</span>
+                    <span className="text-xl md:text-2xl font-black text-white mt-1 leading-none">
+                      {monthlyData.total}
+                    </span>
+                    <span className="text-[8px] text-neutral-400 mt-1">Обработано за месяц</span>
+                  </div>
+
+                  {/* Card 2: Confirmed */}
+                  <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-2.5 flex flex-col justify-between">
+                    <span className="text-[9px] text-emerald-400 font-black uppercase tracking-wider">Подтверждено</span>
+                    <span className="text-xl md:text-2xl font-black text-emerald-400 mt-1 leading-none">
+                      {monthlyData.confirmed}
+                    </span>
+                    <span className="text-[8px] text-neutral-400 mt-1">
+                      {monthlyData.total > 0 ? Math.round((monthlyData.confirmed / monthlyData.total) * 100) : 0}% от общего
+                    </span>
+                  </div>
+
+                  {/* Card 3: Missing */}
+                  <div className="bg-red-950/20 border border-red-500/20 rounded-xl p-2.5 flex flex-col justify-between">
+                    <span className="text-[9px] text-red-400 font-black uppercase tracking-wider">Отсутствует</span>
+                    <span className="text-xl md:text-2xl font-black text-red-400 mt-1 leading-none">
+                      {monthlyData.missing}
+                    </span>
+                    <span className="text-[8px] text-neutral-400 mt-1">
+                      {monthlyData.total > 0 ? Math.round((monthlyData.missing / monthlyData.total) * 100) : 0}% от общего
+                    </span>
+                  </div>
+
+                  {/* Card 4: Placement accuracy */}
+                  <div className="bg-blue-950/20 border border-blue-500/20 rounded-xl p-2.5 flex flex-col justify-between">
+                    <span className="text-[9px] text-blue-400 font-black uppercase tracking-wider">Точность полки</span>
+                    <span className="text-xl md:text-2xl font-black text-blue-400 mt-1 leading-none">
+                      {monthlyData.confirmed > 0 ? Math.round((monthlyData.placementCorrect / monthlyData.confirmed) * 100) : 0}%
+                    </span>
+                    <span className="text-[8px] text-neutral-400 mt-1">
+                      {monthlyData.placementCorrect} из {monthlyData.confirmed} верно
+                    </span>
+                  </div>
+                </div>
+
+                {/* Charts section: Left side-by-side bar chart, right trend line */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  
+                  {/* Shift comparison SVG Bar Chart */}
+                  <div className="bg-neutral-850 border border-neutral-800 rounded-xl p-3 flex flex-col">
+                    <h4 className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider mb-2">📊 Продуктивность смен (SKU)</h4>
+                    <div className="flex-1 flex items-center justify-center min-h-[160px]">
+                      {(() => {
+                        const shiftData = monthlyData.shifts || {};
+                        const shiftKeys = Object.keys(shiftData).sort();
+                        if (shiftKeys.length === 0) {
+                          return <span className="text-[10px] text-neutral-500">Нет данных по сменам</span>;
+                        }
+
+                        const maxShiftVal = Math.max(...Object.values(shiftData).map(s => s.total), 1);
+                        const svgWidth = 400;
+                        const svgHeight = 150;
+                        const chartBottom = 120;
+                        const chartHeight = 100;
+                        const spacing = svgWidth / (shiftKeys.length + 1);
+
+                        return (
+                          <svg className="w-full h-full max-h-[160px]" viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
+                            {/* Grid lines */}
+                            {[0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                              const y = chartBottom - ratio * chartHeight;
+                              const val = Math.round(ratio * maxShiftVal);
+                              return (
+                                <g key={idx}>
+                                  <line x1="40" y1={y} x2={svgWidth - 20} y2={y} stroke="#262626" strokeWidth="1" strokeDasharray="3 3" />
+                                  <text x="32" y={y + 3} textAnchor="end" fill="#525252" className="text-[8px] font-mono">{val}</text>
+                                </g>
+                              );
+                            })}
+
+                            {/* Base line */}
+                            <line x1="40" y1={chartBottom} x2={svgWidth - 20} y2={chartBottom} stroke="#404040" strokeWidth="1" />
+
+                            {/* Bars */}
+                            {shiftKeys.map((sName, idx) => {
+                              const total = shiftData[sName].total || 0;
+                              const confirmed = shiftData[sName].confirmed || 0;
+                              const barX = 40 + (idx + 0.5) * spacing;
+                              const barW = 28;
+
+                              const hTotal = (total / maxShiftVal) * chartHeight;
+                              const yTotal = chartBottom - hTotal;
+                              
+                              const hConf = (confirmed / maxShiftVal) * chartHeight;
+                              const yConf = chartBottom - hConf;
+
+                              return (
+                                <g key={idx}>
+                                  {/* Total SKU Bar (Indigo) */}
+                                  <rect x={barX - barW/2} y={yTotal} width={barW} height={hTotal} fill="#4f46e5" rx="3" className="opacity-80 hover:opacity-100 transition" />
+                                  {/* Confirmed SKU Bar (Emerald - nested/overlapping inside total) */}
+                                  <rect x={barX - barW/2 + 2} y={yConf} width={barW - 4} height={hConf} fill="#10b981" rx="2" className="opacity-90 hover:opacity-100 transition" />
+
+                                  {/* Values on top */}
+                                  <text x={barX} y={yTotal - 3} textAnchor="middle" fill="#a3a3a3" className="text-[8px] font-bold font-mono">{total}</text>
+                                  {confirmed > 0 && confirmed !== total && (
+                                    <text x={barX} y={yConf + 9} textAnchor="middle" fill="#ffffff" className="text-[8px] font-bold font-mono">{confirmed}</text>
+                                  )}
+
+                                  {/* Shift name label */}
+                                  <text x={barX} y={chartBottom + 14} textAnchor="middle" fill="#d4d4d4" className="text-[9px] font-extrabold">{sName.replace(" смена", " см.")}</text>
+                                </g>
+                              );
+                            })}
+                          </svg>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Daily productivity linear Trend Chart */}
+                  <div className="bg-neutral-850 border border-neutral-800 rounded-xl p-3 flex flex-col">
+                    <h4 className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider mb-2">📈 Дневная динамика выполнения (SKU)</h4>
+                    <div className="flex-1 flex items-center justify-center min-h-[160px]">
+                      {activeDays.length === 0 ? (
+                        <span className="text-[10px] text-neutral-500">Нет ежедневных данных за этот период</span>
+                      ) : (
+                        (() => {
+                          const maxDailyVal = Math.max(...activeDays.map(day => dailyData[day].total), 10);
+                          const svgWidth = 400;
+                          const svgHeight = 150;
+                          const chartBottom = 120;
+                          const chartHeight = 100;
+                          const chartWidth = 340;
+                          const startX = 45;
+
+                          const points = activeDays.map((day, idx) => {
+                            const total = dailyData[day].total || 0;
+                            const x = startX + (idx / (activeDays.length - 1 || 1)) * chartWidth;
+                            const y = chartBottom - (total / maxDailyVal) * chartHeight;
+                            return { x, y, total, dayStr: day.split("-")[2] };
+                          });
+
+                          const linePath = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+                          const areaPath = points.length > 0 
+                            ? `${linePath} L ${points[points.length - 1].x} ${chartBottom} L ${points[0].x} ${chartBottom} Z` 
+                            : "";
+
+                          return (
+                            <svg className="w-full h-full max-h-[160px]" viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
+                              {/* Gradient definition */}
+                              <defs>
+                                <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#a855f7" stopOpacity="0.4" />
+                                  <stop offset="100%" stopColor="#a855f7" stopOpacity="0.0" />
+                                </linearGradient>
+                              </defs>
+
+                              {/* Y Grid lines */}
+                              {[0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                                const y = chartBottom - ratio * chartHeight;
+                                const val = Math.round(ratio * maxDailyVal);
+                                return (
+                                  <g key={idx}>
+                                    <line x1={startX} y1={y} x2={svgWidth - 15} y2={y} stroke="#262626" strokeWidth="1" strokeDasharray="3 3" />
+                                    <text x="38" y={y + 3} textAnchor="end" fill="#525252" className="text-[8px] font-mono">{val}</text>
+                                  </g>
+                                );
+                              })}
+
+                              {/* Base line */}
+                              <line x1={startX} y1={chartBottom} x2={svgWidth - 15} y2={chartBottom} stroke="#404040" strokeWidth="1" />
+
+                              {/* Area below trend line */}
+                              {areaPath && <path d={areaPath} fill="url(#purpleGradient)" />}
+
+                              {/* Trend line */}
+                              {linePath && <path d={linePath} fill="none" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
+
+                              {/* Interactive dots */}
+                              {points.map((p, idx) => (
+                                <g key={idx}>
+                                  <circle cx={p.x} cy={p.y} r="3" fill="#c084fc" stroke="#1f2937" strokeWidth="1" />
+                                  {(points.length < 15 || idx % 3 === 0 || idx === points.length - 1) && (
+                                    <text x={p.x} y={p.y - 6} textAnchor="middle" fill="#d4d4d4" className="text-[7px] font-mono font-bold">{p.total}</text>
+                                  )}
+                                </g>
+                              ))}
+
+                              {/* X Axis dates (labels on first, mid, last days) */}
+                              {points.filter((_, i) => i === 0 || i === points.length - 1 || i === Math.floor(points.length / 2)).map((p, idx) => (
+                                <text key={idx} x={p.x} y={chartBottom + 12} textAnchor="middle" fill="#737373" className="text-[8px] font-mono font-bold">
+                                  {p.dayStr}
+                                </text>
+                              ))}
+                            </svg>
+                          );
+                        })()
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Leaderboard Section */}
+                <div className="bg-neutral-850 border border-neutral-800 rounded-xl p-3 shrink-0">
+                  <h4 className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider mb-2">🏆 Лучшие сотрудники месяца</h4>
+                  {(() => {
+                    const userData = monthlyData.users || {};
+                    const sortedUsers = Object.keys(userData).sort((a, b) => userData[b].total - userData[a].total);
+
+                    if (sortedUsers.length === 0) {
+                      return <span className="text-[10px] text-neutral-500">Нет данных о работе сотрудников</span>;
+                    }
+
+                    return (
+                      <div className="max-h-[140px] overflow-y-auto">
+                        <table className="w-full text-[10px] text-neutral-300 border-collapse">
+                          <thead>
+                            <tr className="border-b border-neutral-800 text-left text-neutral-500 uppercase tracking-wider">
+                              <th className="pb-1.5 font-black">Рейтинг</th>
+                              <th className="pb-1.5 font-black">Ф.И.О. сотрудника</th>
+                              <th className="pb-1.5 font-black text-center">Всего SKU</th>
+                              <th className="pb-1.5 font-black text-center text-emerald-400">Подтверждено</th>
+                              <th className="pb-1.5 font-black text-center text-red-400">Отсутствует</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sortedUsers.map((uName, idx) => {
+                              const uStats = userData[uName];
+                              const rankEmoji = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`;
+                              return (
+                                <tr key={uName} className="border-b border-neutral-800/40 hover:bg-neutral-800/20">
+                                  <td className="py-1.5 font-bold">{rankEmoji}</td>
+                                  <td className="py-1.5 font-bold text-white truncate max-w-[180px]">{uName}</td>
+                                  <td className="py-1.5 text-center font-mono font-bold">{uStats.total}</td>
+                                  <td className="py-1.5 text-center text-emerald-400 font-mono font-semibold">{uStats.confirmed}</td>
+                                  <td className="py-1.5 text-center text-red-400 font-mono font-semibold">{uStats.missing}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+              </div>
+            )}
+          </div>
+
+          {/* Footer close */}
+          <div className="mt-3 border-t border-neutral-800 pt-2.5 flex justify-end shrink-0">
+            <button
+              onClick={() => {
+                setShowGotovaStats(false);
+                playSound("click");
+              }}
+              className="px-4 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg text-[10px] font-bold transition active:scale-95"
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
 
   const renderOrientationOverlay = () => {
@@ -725,8 +1122,8 @@ export default function Home() {
               </button>
             </form>
             
-            {/* Statistics button */}
-            <div className="mt-4 pt-3 border-t border-neutral-700 flex justify-center">
+            {/* Statistics buttons */}
+            <div className="mt-4 pt-3 border-t border-neutral-700 flex justify-center gap-3.5 items-center">
               <button
                 type="button"
                 onClick={() => {
@@ -734,15 +1131,28 @@ export default function Home() {
                   fetchStats();
                   playSound("click");
                 }}
-                className="text-xs text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 transition-all active:scale-95"
+                className="text-[11px] text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 transition-all active:scale-95"
               >
                 📊 Статистика смен
+              </button>
+              <span className="text-neutral-600">|</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGotovaStats(true);
+                  fetchGotovaStats();
+                  playSound("click");
+                }}
+                className="text-[11px] text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 transition-all active:scale-95"
+              >
+                📈 Аналитика (Готова)
               </button>
             </div>
           </div>
         </div>
         {renderOrientationOverlay()}
         {renderStatsModal()}
+        {renderGotovaStatsModal()}
       </>
     );
   }
@@ -774,16 +1184,26 @@ export default function Home() {
                     fetchStats();
                     playSound("click");
                   }}
-                  className="px-3 py-2.5 bg-neutral-800 border border-neutral-700 text-white hover:bg-neutral-700 rounded-xl text-sm font-bold transition active:scale-95"
+                  className="px-2.5 py-2.5 bg-neutral-850 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white rounded-xl text-xs font-bold transition active:scale-95"
                 >
                   📊 Статистика
+                </button>
+                <button
+                  onClick={() => {
+                    setShowGotovaStats(true);
+                    fetchGotovaStats();
+                    playSound("click");
+                  }}
+                  className="px-2.5 py-2.5 bg-purple-950/40 hover:bg-purple-900 border border-purple-800/80 text-purple-300 hover:text-white rounded-xl text-xs font-bold transition active:scale-95"
+                >
+                  📈 Аналитика
                 </button>
                 <button 
                   onClick={() => {
                     handleLogout();
                     playSound("click");
                   }} 
-                  className="px-5 py-2.5 bg-red-900/80 border border-red-500 text-white hover:bg-red-800 rounded-xl text-sm font-black transition active:scale-95 shadow-md shadow-red-900/30"
+                  className="px-4 py-2.5 bg-red-900/80 border border-red-500 text-white hover:bg-red-800 rounded-xl text-sm font-black transition active:scale-95 shadow-md shadow-red-900/30"
                 >
                   Выйти
                 </button>
@@ -810,6 +1230,7 @@ export default function Home() {
         </div>
         {renderOrientationOverlay()}
         {renderStatsModal()}
+        {renderGotovaStatsModal()}
       </>
     );
   }
@@ -871,6 +1292,16 @@ export default function Home() {
               className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 px-3 py-1 rounded-md border border-blue-500/30 text-xs font-bold transition active:scale-95"
             >
               📊 Статистика
+            </button>
+            <button
+              onClick={() => {
+                setShowGotovaStats(true);
+                fetchGotovaStats();
+                playSound("click");
+              }}
+              className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 hover:text-purple-300 px-3 py-1 rounded-md border border-purple-500/30 text-xs font-bold transition active:scale-95"
+            >
+              📈 Аналитика
             </button>
             <button onClick={() => {
               handleLogout();
@@ -1079,6 +1510,7 @@ export default function Home() {
       </div>
       {renderOrientationOverlay()}
       {renderStatsModal()}
+      {renderGotovaStatsModal()}
     </>
   );
 }

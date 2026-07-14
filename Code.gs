@@ -11,6 +11,12 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
   
+  // If gotova stats action is requested
+  if (action === 'gotova_stats') {
+    return ContentService.createTextOutput(JSON.stringify(getGotovaStats(ss)))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
   // If product detail proxy action is requested (bypasses CORS & WAF)
   if (action === 'product') {
     var id = e.parameter.id;
@@ -217,3 +223,142 @@ function getStats(ss) {
   
   return stats;
 }
+
+function getGotovaStats(ss) {
+  var sheet = ss.getSheetByName("готова");
+  if (!sheet) {
+    sheet = ss.getSheetByName("gotova");
+  }
+  if (!sheet) {
+    return { success: false, error: "Лист 'готова' не найден" };
+  }
+  
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) {
+    return { success: true, monthly: {}, daily: {} };
+  }
+  
+  var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
+  
+  // Find indices based on headers
+  var statusIdx = headers.indexOf("статус");
+  var placementIdx = headers.indexOf("размещение верно");
+  var userIdx = headers.indexOf("фио");
+  var shiftIdx = headers.indexOf("смена");
+  var dateIdx = headers.indexOf("дата");
+  
+  // Fallbacks to default F (5), G (6), H (7), I (8), J (9)
+  if (statusIdx === -1) statusIdx = 5;
+  if (placementIdx === -1) placementIdx = 6;
+  if (userIdx === -1) userIdx = 7;
+  if (shiftIdx === -1) shiftIdx = 8;
+  if (dateIdx === -1) dateIdx = 9;
+  
+  var monthlyStats = {};
+  var dailyStats = {};
+  
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var status = String(row[statusIdx] || "").trim();
+    var placementCorrect = String(row[placementIdx] || "").trim();
+    var userName = String(row[userIdx] || "").trim();
+    var shiftName = String(row[shiftIdx] || "").trim();
+    var dateVal = row[dateIdx];
+    
+    if (!status) continue;
+    
+    var dateObj = null;
+    if (dateVal instanceof Date) {
+      dateObj = dateVal;
+    } else if (dateVal) {
+      dateObj = new Date(String(dateVal));
+    }
+    
+    if (!dateObj || isNaN(dateObj.getTime())) {
+      continue;
+    }
+    
+    var year = dateObj.getFullYear();
+    var month = ("0" + (dateObj.getMonth() + 1)).slice(-2);
+    var day = ("0" + dateObj.getDate()).slice(-2);
+    
+    var monthKey = year + "-" + month;
+    var dayKey = year + "-" + month + "-" + day;
+    
+    // Initialize monthly stats
+    if (!monthlyStats[monthKey]) {
+      monthlyStats[monthKey] = {
+        total: 0,
+        confirmed: 0,
+        missing: 0,
+        placementCorrect: 0,
+        placementIncorrect: 0,
+        shifts: {},
+        users: {}
+      };
+    }
+    
+    // Initialize daily stats
+    if (!dailyStats[dayKey]) {
+      dailyStats[dayKey] = {
+        total: 0,
+        confirmed: 0,
+        missing: 0,
+        placementCorrect: 0,
+        placementIncorrect: 0,
+        shifts: {},
+        users: {}
+      };
+    }
+    
+    // Update monthly and daily stats
+    [monthlyStats[monthKey], dailyStats[dayKey]].forEach(function(s) {
+      s.total += 1;
+      
+      var normStatus = status.toLowerCase();
+      if (normStatus.indexOf("подтвержд") !== -1 || normStatus === "подтвержден" || normStatus === "да") {
+        s.confirmed += 1;
+      } else if (normStatus.indexOf("отсутств") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
+        s.missing += 1;
+      }
+      
+      var normPlacement = placementCorrect.toLowerCase();
+      if (normPlacement === "да" || normPlacement === "yes" || normPlacement === "верно") {
+        s.placementCorrect += 1;
+      } else if (normPlacement === "нет" || normPlacement === "no" || normPlacement === "неверно") {
+        s.placementIncorrect += 1;
+      }
+      
+      if (shiftName) {
+        if (!s.shifts[shiftName]) {
+          s.shifts[shiftName] = { total: 0, confirmed: 0, missing: 0 };
+        }
+        s.shifts[shiftName].total += 1;
+        if (normStatus.indexOf("подтвержд") !== -1 || normStatus === "подтвержден" || normStatus === "да") {
+          s.shifts[shiftName].confirmed += 1;
+        } else if (normStatus.indexOf("отсутств") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
+          s.shifts[shiftName].missing += 1;
+        }
+      }
+      
+      if (userName) {
+        if (!s.users[userName]) {
+          s.users[userName] = { total: 0, confirmed: 0, missing: 0 };
+        }
+        s.users[userName].total += 1;
+        if (normStatus.indexOf("подтвержд") !== -1 || normStatus === "подтвержден" || normStatus === "да") {
+          s.users[userName].confirmed += 1;
+        } else if (normStatus.indexOf("отсутств") !== -1 || normStatus === "отсутствует" || normStatus === "нет") {
+          s.users[userName].missing += 1;
+        }
+      }
+    });
+  }
+  
+  return {
+    success: true,
+    monthly: monthlyStats,
+    daily: dailyStats
+  };
+}
+
