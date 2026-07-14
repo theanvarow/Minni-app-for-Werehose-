@@ -753,9 +753,9 @@ export default function Home() {
               <div className="flex flex-col gap-4">
                 
                 {/* Metric cards */}
-                <div className="grid grid-cols-4 gap-2 md:gap-3 shrink-0">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 md:gap-3 shrink-0">
                   {/* Card 1: Total */}
-                  <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-2.5 flex flex-col justify-between">
+                  <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-2.5 flex flex-col justify-between col-span-2 sm:col-span-1">
                     <span className="text-[9px] text-purple-400 font-black uppercase tracking-wider">Общий объем</span>
                     <span className="text-xl md:text-2xl font-black text-white mt-1 leading-none">
                       {monthlyData.total}
@@ -793,6 +793,17 @@ export default function Home() {
                     </span>
                     <span className="text-[8px] text-neutral-400 mt-1">
                       {monthlyData.confirmed > 0 ? Math.round((monthlyData.placementCorrect / monthlyData.confirmed) * 100) : 0}% точность полки
+                    </span>
+                  </div>
+
+                  {/* Card 5: Placement incorrect */}
+                  <div className="bg-amber-950/20 border border-amber-500/20 rounded-xl p-2.5 flex flex-col justify-between">
+                    <span className="text-[9px] text-amber-400 font-black uppercase tracking-wider">Неверно размещено</span>
+                    <span className="text-xl md:text-2xl font-black text-amber-400 mt-1 leading-none">
+                      {monthlyData.placementIncorrect || 0}
+                    </span>
+                    <span className="text-[8px] text-neutral-400 mt-1">
+                      {monthlyData.confirmed > 0 ? Math.round(((monthlyData.placementIncorrect || 0) / monthlyData.confirmed) * 100) : 0}% от найденных
                     </span>
                   </div>
                 </div>
