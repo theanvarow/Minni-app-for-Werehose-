@@ -63,8 +63,9 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
   
+  var userName = e.parameter.userName || "";
   var data = sheet.getDataRange().getValues();
-  var items = [];
+  var uncompletedItems = [];
   
   for (var i = 1; i < data.length; i++) {
     var row = data[i];
@@ -74,11 +75,11 @@ function doGet(e) {
     var name = String(row[3] || "").trim();
     var qty = String(row[4] || "").trim();
     var status = String(row[5] || "").trim();
-    var productId = String(row[10] || "").trim(); // Column K (index 10) Product ID
+    var productId = String(row[10] || "").trim();
     
     // Filter by floor and status
     if (location.toUpperCase().indexOf(floor.toUpperCase()) === 0 && (!status || status === "")) {
-      items.push({
+      uncompletedItems.push({
         rowIndex: i + 1,
         location: location,
         barcode: barcode,
@@ -90,9 +91,36 @@ function doGet(e) {
     }
   }
   
+  var totalCount = uncompletedItems.length;
+  var cache = CacheService.getScriptCache();
+  var filteredItems = [];
+  var limit = 3;
+  
+  for (var k = 0; k < uncompletedItems.length; k++) {
+    var item = uncompletedItems[k];
+    var lockKey = "lock_" + sheetName + "_" + item.rowIndex;
+    var lockUser = cache.get(lockKey);
+    
+    if (lockUser && lockUser !== userName) {
+      // Locked by someone else - skip!
+      continue;
+    }
+    
+    // Lock for the current user
+    if (userName) {
+      cache.put(lockKey, userName, 120); // lock for 2 minutes
+    }
+    
+    filteredItems.push(item);
+    if (filteredItems.length >= limit) {
+      break;
+    }
+  }
+  
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
-    items: items
+    totalCount: totalCount,
+    items: filteredItems
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -127,6 +155,14 @@ function doPost(e) {
     sheet.getRange(rowIndex, 10).setValue(timestamp || new Date()); // Column J (Date)
     
     SpreadsheetApp.flush();
+    
+    // Clear script cache lock for this row
+    try {
+      var lockKey = "lock_" + sheetName + "_" + rowIndex;
+      CacheService.getScriptCache().remove(lockKey);
+    } catch (lockErr) {
+      // Ignore cache failures
+    }
     
     return ContentService.createTextOutput(JSON.stringify({ success: true }))
       .setMimeType(ContentService.MimeType.JSON);
