@@ -57,74 +57,94 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
   
-  var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Лист '" + sheetName + "' не найден" }))
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000); // 30 seconds timeout
+  } catch (lockErr) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Превышено время ожидания блокировки сервера" }))
       .setMimeType(ContentService.MimeType.JSON);
   }
   
-  var userName = e.parameter.userName || "";
-  var data = sheet.getDataRange().getValues();
-  var uncompletedItems = [];
-  
-  for (var i = 1; i < data.length; i++) {
-    var row = data[i];
-    var barcode = String(row[0] || "").trim();
-    var location = String(row[1] || "").trim();
-    var category = String(row[2] || "").trim();
-    var name = String(row[3] || "").trim();
-    var qty = String(row[4] || "").trim();
-    var status = String(row[5] || "").trim();
-    var productId = String(row[10] || "").trim();
-    
-    // Filter by floor and status
-    if (location.toUpperCase().indexOf(floor.toUpperCase()) === 0 && (!status || status === "")) {
-      uncompletedItems.push({
-        rowIndex: i + 1,
-        location: location,
-        barcode: barcode,
-        category: category,
-        name: name,
-        qty: qty,
-        productId: productId
-      });
+  try {
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Лист '" + sheetName + "' не найден" }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
+    
+    var userName = e.parameter.userName || "";
+    var data = sheet.getDataRange().getValues();
+    var uncompletedItems = [];
+    
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var barcode = String(row[0] || "").trim();
+      var location = String(row[1] || "").trim();
+      var category = String(row[2] || "").trim();
+      var name = String(row[3] || "").trim();
+      var qty = String(row[4] || "").trim();
+      var status = String(row[5] || "").trim();
+      var productId = String(row[10] || "").trim();
+      
+      // Filter by floor and status
+      if (location.toUpperCase().indexOf(floor.toUpperCase()) === 0 && (!status || status === "")) {
+        uncompletedItems.push({
+          rowIndex: i + 1,
+          location: location,
+          barcode: barcode,
+          category: category,
+          name: name,
+          qty: qty,
+          productId: productId
+        });
+      }
+    }
+    
+    var totalCount = uncompletedItems.length;
+    var cache = CacheService.getScriptCache();
+    var filteredItems = [];
+    var limit = 3;
+    
+    for (var k = 0; k < uncompletedItems.length; k++) {
+      var item = uncompletedItems[k];
+      var lockKey = ("lock_" + sheetName + "_" + item.rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
+      var lockUser = cache.get(lockKey);
+      
+      if (lockUser && lockUser !== userName) {
+        // Locked by someone else - skip!
+        continue;
+      }
+      
+      // Lock for the current user
+      if (userName) {
+        cache.put(lockKey, userName, 600); // Lock for 10 minutes to prevent expiration issues
+      }
+      
+      filteredItems.push(item);
+      if (filteredItems.length >= limit) {
+        break;
+      }
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      totalCount: totalCount,
+      items: filteredItems
+    })).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
-  
-  var totalCount = uncompletedItems.length;
-  var cache = CacheService.getScriptCache();
-  var filteredItems = [];
-  var limit = 3;
-  
-  for (var k = 0; k < uncompletedItems.length; k++) {
-    var item = uncompletedItems[k];
-    var lockKey = ("lock_" + sheetName + "_" + item.rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
-    var lockUser = cache.get(lockKey);
-    
-    if (lockUser && lockUser !== userName) {
-      // Locked by someone else - skip!
-      continue;
-    }
-    
-    // Lock for the current user
-    if (userName) {
-      cache.put(lockKey, userName, 120); // lock for 2 minutes
-    }
-    
-    filteredItems.push(item);
-    if (filteredItems.length >= limit) {
-      break;
-    }
-  }
-  
-  return ContentService.createTextOutput(JSON.stringify({
-    success: true,
-    totalCount: totalCount,
-    items: filteredItems
-  })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000); // 30 seconds wait
+  } catch (lockErr) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Превышено время ожидания записи на сервере" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
   try {
     var postData = JSON.parse(e.postData.contents);
     var sheetName = postData.shift;
@@ -170,6 +190,8 @@ function doPost(e) {
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
 }
 
