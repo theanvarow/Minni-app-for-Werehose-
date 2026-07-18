@@ -965,7 +965,7 @@ export default function Home() {
   if (!isLoggedIn) {
     return (
       <>
-        <div className="w-screen h-[100dvh] bg-neutral-900 text-white p-4 font-sans flex items-center justify-center overflow-hidden">
+        <div className="w-full h-full bg-neutral-900 text-white p-4 font-sans flex items-center justify-center overflow-hidden">
           {/* Form container */}
           <div className="w-full max-w-md bg-neutral-800 rounded-2xl shadow-2xl p-6 border border-neutral-700 flex flex-col justify-center">
             <h2 className="text-xl font-bold mb-3">Авторизация</h2>
@@ -1049,7 +1049,7 @@ export default function Home() {
   if (isLoggedIn && !selectedFloor) {
     return (
       <>
-        <div className="w-screen h-[100dvh] bg-neutral-900 text-white p-4 font-sans flex items-center justify-center overflow-hidden">
+        <div className="w-full h-full bg-neutral-900 text-white p-4 font-sans flex items-center justify-center overflow-hidden">
           {/* Main Container */}
           <div className="w-full max-w-md bg-neutral-800 rounded-2xl shadow-2xl p-6 border border-neutral-700 flex flex-col">
             
@@ -1126,7 +1126,7 @@ export default function Home() {
 
   return (
     <>
-      <div className="w-screen h-[100dvh] bg-neutral-900 text-white p-1.5 md:p-3 font-sans flex flex-col overflow-hidden select-none">
+      <div className="w-full h-full bg-neutral-900 text-white p-1.5 md:p-3 font-sans flex flex-col overflow-hidden select-none">
         
         {/* Header bar showing user and logout */}
         <div className="h-9 md:h-12 shrink-0 flex justify-between items-center w-full px-2 border-b border-neutral-800 mb-1.5 md:mb-2 text-xs">
