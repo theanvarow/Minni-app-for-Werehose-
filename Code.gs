@@ -98,7 +98,7 @@ function doGet(e) {
   
   for (var k = 0; k < uncompletedItems.length; k++) {
     var item = uncompletedItems[k];
-    var lockKey = "lock_" + sheetName + "_" + item.rowIndex;
+    var lockKey = ("lock_" + sheetName + "_" + item.rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
     var lockUser = cache.get(lockKey);
     
     if (lockUser && lockUser !== userName) {
@@ -158,7 +158,7 @@ function doPost(e) {
     
     // Clear script cache lock for this row
     try {
-      var lockKey = "lock_" + sheetName + "_" + rowIndex;
+      var lockKey = ("lock_" + sheetName + "_" + rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
       CacheService.getScriptCache().remove(lockKey);
     } catch (lockErr) {
       // Ignore cache failures
