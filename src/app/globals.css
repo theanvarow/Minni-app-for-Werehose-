@@ -57,7 +57,7 @@ html, body {
   }
 }
 @media screen and (orientation: portrait) {
-  html, body {
+  #app-wrapper {
     width: 100vh !important;
     height: 100vw !important;
     position: fixed !important;
