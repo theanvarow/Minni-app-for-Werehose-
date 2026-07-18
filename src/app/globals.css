@@ -56,26 +56,15 @@ html, body {
     font-size: 16px !important;
   }
 }
-/* Portrait orientation warning overlay */
-.portrait-warning-overlay {
-  display: none;
-}
-
 @media screen and (orientation: portrait) {
-  .portrait-warning-overlay {
-    display: flex;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100dvh;
-    background-color: #0a0a0a;
-    color: #ffffff;
-    z-index: 99999;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 2rem;
+  html, body {
+    width: 100vh !important;
+    height: 100vw !important;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) rotate(90deg) !important;
+    transform-origin: center !important;
+    overflow: hidden !important;
   }
 }

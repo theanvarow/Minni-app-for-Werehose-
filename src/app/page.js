@@ -948,38 +948,7 @@ export default function Home() {
 
 
   const renderOrientationOverlay = () => {
-    return (
-      <div className="fixed inset-0 bg-neutral-950 z-[9999] flex flex-col items-center justify-center p-6 text-center portrait:flex landscape:hidden font-sans">
-        <div className="mb-8 p-6 bg-neutral-900 rounded-3xl border border-neutral-800 shadow-2xl relative">
-          <div className="animate-rotate-phone inline-block origin-center">
-            <svg 
-              className="w-20 h-32 text-amber-400" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="1.5"
-            >
-              <rect x="5" y="2" width="14" height="20" rx="3" />
-              <line x1="12" y1="18" x2="12" y2="18.01" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-          </div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-40">
-            <svg className="w-24 h-24 text-neutral-700 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-              <path d="M12 2v20M5 9l7-7 7 7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-        </div>
-        <h2 className="text-2xl font-black text-white mb-2 tracking-wide">
-          Поверните устройство!
-        </h2>
-        <p className="text-amber-400 font-bold mb-4 text-base">
-          Поверните устройство горизонтально
-        </p>
-        <p className="text-neutral-400 text-xs max-w-xs leading-relaxed">
-          Приложение работает только в альбомном (горизонтальном) режиме. Пожалуйста, убедитесь, что на вашем устройстве включена **авторотация**.
-        </p>
-      </div>
-    );
+    return null;
   };
 
   if (loading) {
