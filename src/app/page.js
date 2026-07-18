@@ -1182,16 +1182,6 @@ export default function Home() {
             >
               📊 Статистика
             </button>
-            <button
-              onClick={() => {
-                setShowGotovaStats(true);
-                fetchGotovaStats();
-                playSound("click");
-              }}
-              className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 hover:text-purple-300 px-3 py-1 rounded-md border border-purple-500/30 text-xs font-bold transition active:scale-95"
-            >
-              📈 Аналитика
-            </button>
             <button onClick={() => {
               handleLogout();
               playSound("click");
