@@ -283,7 +283,8 @@ export default function Home() {
       }
       setError("");
       
-      const res = await fetch(`/api/inventory?floor=${targetFloor}&shift=${encodeURIComponent(targetShift + " смена")}&userName=${encodeURIComponent(userName)}&t=${Date.now()}`);
+      const activeUserName = userName || (typeof window !== "undefined" ? localStorage.getItem("userName") : "") || "";
+      const res = await fetch(`/api/inventory?floor=${targetFloor}&shift=${encodeURIComponent(targetShift + " смена")}&userName=${encodeURIComponent(activeUserName)}&t=${Date.now()}`);
       const data = await res.json();
 
       if (data.success) {
