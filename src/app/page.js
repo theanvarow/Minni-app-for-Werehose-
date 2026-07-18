@@ -1281,7 +1281,24 @@ export default function Home() {
                     <div className="bg-neutral-700/30 rounded-lg px-3 py-1.5 border border-neutral-700/50 flex flex-col justify-between truncate">
                       <div>
                         <span className="block text-neutral-400 text-[10px] md:text-xs font-bold uppercase">Штрихкод (Требуется)</span>
-                        <span className="font-mono text-sm md:text-base font-bold text-white block mt-0.5 truncate">{currentItem.barcode}</span>
+                        <span className="font-mono text-sm md:text-base font-bold text-neutral-300 block mt-0.5 truncate">
+                          {(() => {
+                            const barcodeStr = String(currentItem.barcode || "");
+                            if (barcodeStr.length <= 4) {
+                              return <span className="text-lg md:text-xl font-black text-yellow-300">{barcodeStr}</span>;
+                            }
+                            const firstPart = barcodeStr.slice(0, -4);
+                            const lastPart = barcodeStr.slice(-4);
+                            return (
+                              <>
+                                <span>{firstPart}</span>
+                                <span className="text-lg md:text-xl font-black text-yellow-300 bg-yellow-400/10 px-1 py-0.2 rounded border border-yellow-500/20 ml-1 inline-block">
+                                  {lastPart}
+                                </span>
+                              </>
+                            );
+                          })()}
+                        </span>
                       </div>
                       {(currentItem.name || currentItem.barcode || currentProductId) && (
                         <a 
