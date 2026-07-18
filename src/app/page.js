@@ -185,6 +185,18 @@ export default function Home() {
       (typeof window !== "undefined" && window.navigator && window.navigator.standalone === true);
     setIsStandalone(!!isStandaloneMode);
 
+    // Attempt to lock screen orientation to landscape
+    const lockOrientation = async () => {
+      try {
+        if (typeof screen !== "undefined" && screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock("landscape");
+        }
+      } catch (e) {
+        console.warn("Orientation lock not supported:", e);
+      }
+    };
+    lockOrientation();
+
     // Detect if inside in-app browser (Telegram, Instagram, etc)
     if (typeof window !== "undefined") {
       const ua = window.navigator.userAgent || window.navigator.vendor || window.opera || "";
@@ -972,9 +984,12 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-neutral-900 text-white">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500"></div>
-      </div>
+      <>
+        <div className="flex items-center justify-center min-h-screen bg-neutral-900 text-white">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500"></div>
+        </div>
+        {renderOrientationOverlay()}
+      </>
     );
   }
 
