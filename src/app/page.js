@@ -1172,16 +1172,6 @@ export default function Home() {
               В очереди: <span className="font-bold text-blue-400">{totalQueueCount}</span>
               {isFetchingBackground && <span className="ml-1.5 animate-pulse text-amber-500">...</span>}
             </span>
-            <button
-              onClick={() => {
-                setShowStats(true);
-                fetchStats();
-                playSound("click");
-              }}
-              className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 px-3 py-1 rounded-md border border-blue-500/30 text-xs font-bold transition active:scale-95"
-            >
-              📊 Статистика
-            </button>
             <button onClick={() => {
               handleLogout();
               playSound("click");
