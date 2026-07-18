@@ -54,6 +54,7 @@ export default function Home() {
   const [shiftInput, setShiftInput] = useState("");
   const [showPlacementConfirm, setShowPlacementConfirm] = useState(false);
   const [selectedFloor, setSelectedFloor] = useState("");
+  const [selectedAisle, setSelectedAisle] = useState("all");
   
   // Statistics states
   const [showStats, setShowStats] = useState(false);
@@ -82,7 +83,30 @@ export default function Home() {
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [isInAppBrowser, setIsInAppBrowser] = useState(false);
 
-  const currentItem = itemQueue.length > 0 ? itemQueue[0] : null;
+  const getAisle = (location) => {
+    if (!location) return "Другое";
+    const parts = location.split("-");
+    if (parts.length > 1) {
+      return parts[1];
+    }
+    const match = location.match(/\d+/);
+    if (match) {
+      // First 2 digits as aisle fallback (e.g. D0102 -> "01")
+      return match[0].substring(0, 2);
+    }
+    return "Другое";
+  };
+
+  const availableAisles = Array.from(
+    new Set(itemQueue.map(item => getAisle(item.location)))
+  ).sort();
+
+  const filteredQueue = itemQueue.filter(item => {
+    if (selectedAisle === "all") return true;
+    return getAisle(item.location) === selectedAisle;
+  });
+
+  const currentItem = filteredQueue.length > 0 ? filteredQueue[0] : null;
 
   const getProductId = (item) => {
     if (!item) return "";
@@ -261,6 +285,7 @@ export default function Home() {
   const handleFloorChange = (newFloor) => {
     localStorage.setItem("selectedFloor", newFloor);
     setSelectedFloor(newFloor);
+    setSelectedAisle("all");
     setItemQueue([]);
     verifiedRowsRef.current = new Set();
     if (newFloor) {
@@ -378,7 +403,7 @@ export default function Home() {
     verifiedRowsRef.current.add(currentItem.rowIndex);
 
     // OPTIMISTIC UI: Immediately remove the item from the queue to show the next one
-    setItemQueue(prevQueue => prevQueue.slice(1));
+    setItemQueue(prevQueue => prevQueue.filter(item => item.rowIndex !== currentItem.rowIndex));
     setShowPlacementConfirm(false);
 
     // Increment and save today's count
@@ -1156,6 +1181,27 @@ export default function Home() {
                 Сменить
               </button>
             </span>
+            {selectedFloor && availableAisles.length > 0 && (
+              <>
+                <span className="text-neutral-600">|</span>
+                <span className="flex items-center gap-1.5">
+                  Ряд: 
+                  <select
+                    value={selectedAisle}
+                    onChange={(e) => {
+                      setSelectedAisle(e.target.value);
+                      playSound("click");
+                    }}
+                    className="bg-neutral-850 border border-neutral-700 rounded px-1.5 py-0.5 text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-bold cursor-pointer text-[10px]"
+                  >
+                    <option value="all">Все ряды</option>
+                    {availableAisles.map(aisle => (
+                      <option key={aisle} value={aisle}>Ряд {aisle}</option>
+                    ))}
+                  </select>
+                </span>
+              </>
+            )}
           </div>
 
           {/* Quota progress bar in the center */}
@@ -1178,7 +1224,8 @@ export default function Home() {
           
           <div className="flex items-center gap-3">
             <span className="text-[10px] bg-neutral-800 px-2.5 py-0.5 rounded text-neutral-400 border border-neutral-700">
-              В очереди: <span className="font-bold text-blue-400">{itemQueue.length}</span>
+              В очереди: <span className="font-bold text-blue-400">{filteredQueue.length}</span>
+              {selectedAisle !== "all" && <span className="text-neutral-500 ml-1">({itemQueue.length} всего)</span>}
               {isFetchingBackground && <span className="ml-1.5 animate-pulse text-amber-500">...</span>}
             </span>
             <button
@@ -1261,14 +1308,26 @@ export default function Home() {
 
           {!error && !showCelebration && !currentItem && !isFetchingBackground && (
             <div className="w-full text-center bg-neutral-800 rounded-xl flex flex-col items-center justify-center border border-neutral-700 p-4">
-              <h2 className="text-2xl font-black text-amber-400">⚠️ Для этажа {selectedFloor} нет доступных SKU</h2>
-              <p className="text-xs text-neutral-400 mt-2">В таблице больше нет товаров для проверки на этом этаже.</p>
-              <button 
-                onClick={() => fetchItems(false, selectedFloor, shift)}
-                className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-sm transition active:scale-95"
-              >
-                Обновить
-              </button>
+              {selectedAisle !== "all" && itemQueue.length > 0 ? (
+                <>
+                  <h2 className="text-2xl font-black text-amber-400">⚠️ В Ряду {selectedAisle} нет доступных SKU</h2>
+                  <p className="text-xs text-neutral-400 mt-2">Все товары в этом ряду уже проверены. Пожалуйста, выберите другой ряд.</p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-black text-amber-400">⚠️ Для этажа {selectedFloor} нет доступных SKU</h2>
+                  <p className="text-xs text-neutral-400 mt-2">В таблице больше нет товаров для проверки на этом этаже.</p>
+                  <button 
+                    onClick={() => {
+                      fetchItems(false, selectedFloor, shift);
+                      playSound("click");
+                    }}
+                    className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-sm transition active:scale-95 animate-pulse"
+                  >
+                    Обновить
+                  </button>
+                </>
+              )}
             </div>
           )}
 
