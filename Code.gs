@@ -1,4 +1,5 @@
 function doGet(e) {
+  var mode = e.parameter.mode || "proverka";
   var sheetName = e.parameter.shift; 
   var floor = e.parameter.floor; 
   var action = e.parameter.action;
@@ -52,8 +53,9 @@ function doGet(e) {
     }
   }
   
-  if (!sheetName || !floor) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Параметры shift и floor обязательны" }))
+  var targetSheetName = (mode === "izlishka") ? "излишка" : sheetName;
+  if (!targetSheetName || !floor) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Параметры shift/mode и floor обязательны" }))
       .setMimeType(ContentService.MimeType.JSON);
   }
   
@@ -66,9 +68,18 @@ function doGet(e) {
   }
   
   try {
-    var sheet = ss.getSheetByName(sheetName);
+    var sheet = ss.getSheetByName(targetSheetName);
     if (!sheet) {
-      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Лист '" + sheetName + "' не найден" }))
+      var sheets = ss.getSheets();
+      for (var s = 0; s < sheets.length; s++) {
+        if (sheets[s].getName().trim().toLowerCase() === targetSheetName.toLowerCase()) {
+          sheet = sheets[s];
+          break;
+        }
+      }
+    }
+    if (!sheet) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Лист '" + targetSheetName + "' не найден" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
     
@@ -107,7 +118,7 @@ function doGet(e) {
     
     for (var k = 0; k < uncompletedItems.length; k++) {
       var item = uncompletedItems[k];
-      var lockKey = ("lock_" + sheetName + "_" + item.rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
+      var lockKey = ("lock_" + targetSheetName + "_" + item.rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
       var lockUser = cache.get(lockKey);
       
       if (lockUser && lockUser !== userName) {
@@ -147,21 +158,31 @@ function doPost(e) {
   
   try {
     var postData = JSON.parse(e.postData.contents);
-    var sheetName = postData.shift;
+    var mode = postData.mode || "proverka";
+    var sheetName = (mode === "izlishka") ? "излишка" : postData.shift;
     var rowIndex = parseInt(postData.rowIndex);
     var status = postData.status;
-    var placementCorrect = postData.placementCorrect;
+    var placementCorrect = postData.placementCorrect || "";
     var userName = postData.userName;
     var timestamp = postData.timestamp;
     var shiftName = postData.shiftName || postData.shift;
     
     if (!sheetName || !rowIndex) {
-      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Параметры shift и rowIndex обязательны" }))
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Параметры shift/mode и rowIndex обязательны" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
     
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      var sheets = ss.getSheets();
+      for (var s = 0; s < sheets.length; s++) {
+        if (sheets[s].getName().trim().toLowerCase() === sheetName.toLowerCase()) {
+          sheet = sheets[s];
+          break;
+        }
+      }
+    }
     if (!sheet) {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Лист '" + sheetName + "' не найден" }))
         .setMimeType(ContentService.MimeType.JSON);

@@ -72,6 +72,9 @@ export default function Home() {
 
 
 
+  const [activeMode, setActiveMode] = useState(""); // "proverka" | "izlishka"
+  const [izlishkaCount, setIzlishkaCount] = useState(0);
+
   const [isScanned, setIsScanned] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
   const [overrideQuota, setOverrideQuota] = useState(false);
@@ -162,7 +165,9 @@ export default function Home() {
     if (cleanScanned === cleanCurrent) {
       playSound("success");
       setIsScanned(true);
-      setShowPlacementConfirm(true); // Automatically show dimension confirmation
+      if (activeMode === "proverka") {
+        setShowPlacementConfirm(true); // Automatically show dimension confirmation in Proverka mode
+      }
     } else {
       playSound("warning");
       alert(`Неверный штрихкод! Сканирован: ${scanned}, Требуется: ${currentItem.barcode}`);
@@ -212,6 +217,7 @@ export default function Home() {
     const storedName = localStorage.getItem("userName");
     const storedShift = localStorage.getItem("shift");
     const storedFloor = localStorage.getItem("selectedFloor");
+    const storedMode = localStorage.getItem("activeMode");
     if (storedName) {
       setUserName(storedName);
       setShift(storedShift || "");
@@ -221,11 +227,19 @@ export default function Home() {
       const storedCount = localStorage.getItem(`audit_count_${storedName}_${todayStr}`);
       setCompletedCount(storedCount ? parseInt(storedCount, 10) : 0);
 
-      if (storedFloor) {
-        setSelectedFloor(storedFloor);
-        fetchItems(false, storedFloor, storedShift || "");
+      const storedIzlishka = localStorage.getItem(`izlishka_count_${storedName}_${todayStr}`);
+      setIzlishkaCount(storedIzlishka ? parseInt(storedIzlishka, 10) : 0);
+
+      if (storedMode) {
+        setActiveMode(storedMode);
+        if (storedFloor) {
+          setSelectedFloor(storedFloor);
+          fetchItems(false, storedFloor, storedShift || "", storedMode);
+        } else {
+          setLoading(false); // Show floor selection screen
+        }
       } else {
-        setLoading(false); // Show floor selection screen
+        setLoading(false); // Show mode selection screen
       }
     } else {
       setLoading(false); // Stop loading to show login screen
@@ -249,10 +263,15 @@ export default function Home() {
       const todayStr = new Date().toISOString().split('T')[0];
       const storedCount = localStorage.getItem(`audit_count_${trimmedName}_${todayStr}`);
       setCompletedCount(storedCount ? parseInt(storedCount, 10) : 0);
+      
+      const storedIzlishka = localStorage.getItem(`izlishka_count_${trimmedName}_${todayStr}`);
+      setIzlishkaCount(storedIzlishka ? parseInt(storedIzlishka, 10) : 0);
       setOverrideQuota(false);
 
-      // Clear floor to force selection after login
+      // Clear mode & floor to force mode & floor selection after login
+      localStorage.removeItem("activeMode");
       localStorage.removeItem("selectedFloor");
+      setActiveMode("");
       setSelectedFloor("");
     }
   };
@@ -261,14 +280,27 @@ export default function Home() {
     localStorage.removeItem("userName");
     localStorage.removeItem("shift");
     localStorage.removeItem("selectedFloor");
+    localStorage.removeItem("activeMode");
     setIsLoggedIn(false);
     setUserName("");
     setShift("");
+    setActiveMode("");
+    setSelectedFloor("");
     setItemQueue([]);
     setShowPlacementConfirm(false);
-    setSelectedFloor("");
     setCompletedCount(0);
+    setIzlishkaCount(0);
     setOverrideQuota(false);
+  };
+
+  const handleModeChange = (newMode) => {
+    localStorage.setItem("activeMode", newMode);
+    setActiveMode(newMode);
+    localStorage.removeItem("selectedFloor");
+    setSelectedFloor("");
+    setTotalQueueCount(0);
+    setItemQueue([]);
+    verifiedRowsRef.current = new Set();
   };
 
   const handleFloorChange = (newFloor) => {
@@ -278,13 +310,13 @@ export default function Home() {
     setItemQueue([]);
     verifiedRowsRef.current = new Set();
     if (newFloor) {
-      fetchItems(false, newFloor, shift);
+      fetchItems(false, newFloor, shift, activeMode);
     }
   };
 
   const verifiedRowsRef = useRef(new Set());
 
-  const fetchItems = async (isBackground = false, targetFloor = selectedFloor, targetShift = shift) => {
+  const fetchItems = async (isBackground = false, targetFloor = selectedFloor, targetShift = shift, targetMode = activeMode) => {
     if (isFetchingBackground) return;
     
     try {
@@ -296,7 +328,8 @@ export default function Home() {
       setError("");
       
       const activeUserName = userName || (typeof window !== "undefined" ? localStorage.getItem("userName") : "") || "";
-      const res = await fetch(`/api/inventory?floor=${targetFloor}&shift=${encodeURIComponent(targetShift + " смена")}&userName=${encodeURIComponent(activeUserName)}&t=${Date.now()}`);
+      const currentMode = targetMode || activeMode || "proverka";
+      const res = await fetch(`/api/inventory?floor=${targetFloor}&shift=${encodeURIComponent(targetShift + " смена")}&mode=${currentMode}&userName=${encodeURIComponent(activeUserName)}&t=${Date.now()}`);
       const data = await res.json();
 
       if (data.success) {
@@ -321,7 +354,7 @@ export default function Home() {
             // We should poll again in 1.5 seconds if we are in background mode.
             if (isBackground) {
               setTimeout(() => {
-                fetchItems(true, targetFloor, targetShift);
+                fetchItems(true, targetFloor, targetShift, currentMode);
               }, 1500);
               // Do not set isFetchingBackground to false yet, let the spinner keep spinning
               return;
@@ -386,7 +419,7 @@ export default function Home() {
   const handleUpdate = async (status, placementCorrect = "") => {
     if (itemQueue.length === 0) return;
 
-    if (status === "Подтвержден") {
+    if (status === "Подтвержден" || status === "Собрано") {
       playSound("success");
     } else if (status === "Отсутствует") {
       playSound("warning");
@@ -400,17 +433,28 @@ export default function Home() {
     setTotalQueueCount(prev => Math.max(0, prev - 1));
     setShowPlacementConfirm(false);
 
-    // Increment and save today's count
-    setCompletedCount(prev => {
-      const nextCount = prev + 1;
-      const todayStr = new Date().toISOString().split('T')[0];
-      localStorage.setItem(`audit_count_${userName}_${todayStr}`, nextCount.toString());
-      return nextCount;
-    });
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Increment and save today's count based on active mode
+    if (activeMode === "izlishka") {
+      if (status === "Собрано" || status === "Подтвержден") {
+        setIzlishkaCount(prev => {
+          const nextCount = prev + 1;
+          localStorage.setItem(`izlishka_count_${userName}_${todayStr}`, nextCount.toString());
+          return nextCount;
+        });
+      }
+    } else {
+      setCompletedCount(prev => {
+        const nextCount = prev + 1;
+        localStorage.setItem(`audit_count_${userName}_${todayStr}`, nextCount.toString());
+        return nextCount;
+      });
+    }
 
     // If queue is getting low (< 3), fetch more in the background
     if (itemQueue.length - 1 <= 3) {
-      fetchItems(true, selectedFloor, shift);
+      fetchItems(true, selectedFloor, shift, activeMode);
     }
 
     const now = new Date();
@@ -427,7 +471,8 @@ export default function Home() {
           shift: `${shift} смена`, 
           shiftName: `${shift} смена`, 
           placementCorrect,
-          timestamp: formattedTimestamp
+          timestamp: formattedTimestamp,
+          mode: activeMode
         }),
       });
       // We don't need to await or do anything here. If it succeeds, great.
@@ -1046,7 +1091,7 @@ export default function Home() {
     );
   }
 
-  if (isLoggedIn && !selectedFloor) {
+  if (isLoggedIn && !activeMode) {
     return (
       <>
         <div className="w-full h-full bg-neutral-900 text-white p-4 font-sans flex items-center justify-center overflow-hidden">
@@ -1054,9 +1099,131 @@ export default function Home() {
           <div className="w-full max-w-md bg-neutral-800 rounded-2xl shadow-2xl p-6 border border-neutral-700 flex flex-col">
             
             {/* Header: Title and Subtitle */}
-            <div className="mb-2">
-              <h1 className="text-2xl font-black text-amber-400">Выберите этаж</h1>
-              <p className="text-neutral-400 text-xs mt-0.5">Укажите этаж для проверки товаров</p>
+            <div className="mb-3 text-center">
+              <h1 className="text-2xl font-black text-amber-400">Выберите режим работы</h1>
+              <p className="text-neutral-400 text-xs mt-1">Выберите необходимый модуль для начала работы</p>
+            </div>
+
+            {/* Employee card with Logout button */}
+            <div className="mb-4 p-3 bg-neutral-700/30 border border-neutral-700/50 rounded-xl flex justify-between items-center text-xs">
+              <div>
+                <span className="text-neutral-400 text-[9px] uppercase font-bold block">Сотрудник</span>
+                <span className="font-bold text-white truncate max-w-[180px] block">{userName}</span>
+                <span className="text-[10px] text-blue-400 font-semibold block mt-0.5">{shift} смена</span>
+              </div>
+              <button 
+                onClick={() => {
+                  handleLogout();
+                  playSound("click");
+                }} 
+                className="px-3 py-1.5 bg-red-900/80 border border-red-500 text-white hover:bg-red-800 rounded-xl text-xs font-black transition active:scale-95 shadow-md shadow-red-900/30"
+              >
+                Выйти
+              </button>
+            </div>
+
+            {/* Mode selection buttons */}
+            <div className="flex flex-col gap-3 my-2">
+              <button
+                onClick={() => {
+                  handleModeChange("proverka");
+                  playSound("click");
+                }}
+                className="p-4 rounded-2xl bg-gradient-to-r from-blue-900/40 to-neutral-800 hover:from-blue-800/60 border border-blue-500/40 hover:border-blue-400 text-left transition-all active:scale-[0.98] shadow-lg group"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">🔍</span>
+                  <div>
+                    <h3 className="font-black text-base text-white group-hover:text-blue-300 transition">Проверка размещения</h3>
+                    <p className="text-xs text-neutral-400 mt-0.5">Плановая проверка товаров на этажах (План: 93 SKU)</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleModeChange("izlishka");
+                  playSound("click");
+                }}
+                className="p-4 rounded-2xl bg-gradient-to-r from-emerald-900/40 to-neutral-800 hover:from-emerald-800/60 border border-emerald-500/40 hover:border-emerald-400 text-left transition-all active:scale-[0.98] shadow-lg group"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">📦</span>
+                  <div>
+                    <h3 className="font-black text-base text-white group-hover:text-emerald-300 transition">Сбор излишков (Излишка)</h3>
+                    <p className="text-xs text-neutral-400 mt-0.5">Поиск и сбор излишков товаров по этажам</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Statistics buttons */}
+            <div className="mt-4 pt-3 border-t border-neutral-700 flex justify-center gap-3.5 items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStats(true);
+                  fetchStats();
+                  playSound("click");
+                }}
+                className="text-[11px] text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 transition-all active:scale-95"
+              >
+                📊 Статистика смен
+              </button>
+              <span className="text-neutral-600">|</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGotovaStats(true);
+                  fetchGotovaStats();
+                  playSound("click");
+                }}
+                className="text-[11px] text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 transition-all active:scale-95"
+              >
+                📈 Аналитика (Готова)
+              </button>
+            </div>
+
+          </div>
+        </div>
+        {renderOrientationOverlay()}
+        {renderStatsModal()}
+        {renderGotovaStatsModal()}
+      </>
+    );
+  }
+
+  if (isLoggedIn && activeMode && !selectedFloor) {
+    return (
+      <>
+        <div className="w-full h-full bg-neutral-900 text-white p-4 font-sans flex items-center justify-center overflow-hidden">
+          {/* Main Container */}
+          <div className="w-full max-w-md bg-neutral-800 rounded-2xl shadow-2xl p-6 border border-neutral-700 flex flex-col">
+            
+            {/* Header: Title and Subtitle */}
+            <div className="mb-2 flex justify-between items-start">
+              <div>
+                <h1 className="text-2xl font-black text-amber-400">Выберите этаж</h1>
+                <p className="text-neutral-400 text-xs mt-0.5">Укажите этаж для работы</p>
+              </div>
+              <button
+                onClick={() => {
+                  setActiveMode("");
+                  localStorage.removeItem("activeMode");
+                  playSound("click");
+                }}
+                className="text-xs bg-neutral-700 hover:bg-neutral-600 px-2.5 py-1 rounded-lg text-amber-400 font-bold border border-neutral-600 transition active:scale-95"
+              >
+                Сменить режим
+              </button>
+            </div>
+
+            {/* Active Mode Banner */}
+            <div className="mb-3 px-3 py-1.5 bg-neutral-900/60 border border-neutral-700 rounded-xl flex items-center gap-2 text-xs">
+              <span className="text-neutral-400 font-medium">Режим:</span>
+              <span className={`font-black ${activeMode === 'izlishka' ? 'text-emerald-400' : 'text-blue-400'}`}>
+                {activeMode === "izlishka" ? "📦 Сбор излишков (Излишка)" : "🔍 Проверка размещения"}
+              </span>
             </div>
 
             {/* Employee card with Logout button */}
@@ -1077,22 +1244,12 @@ export default function Home() {
                 >
                   📊 Статистика
                 </button>
-                <button
-                  onClick={() => {
-                    setShowGotovaStats(true);
-                    fetchGotovaStats();
-                    playSound("click");
-                  }}
-                  className="px-2.5 py-2.5 bg-purple-950/40 hover:bg-purple-900 border border-purple-800/80 text-purple-300 hover:text-white rounded-xl text-xs font-bold transition active:scale-95"
-                >
-                  📈 Аналитика
-                </button>
                 <button 
                   onClick={() => {
                     handleLogout();
                     playSound("click");
                   }} 
-                  className="px-4 py-2.5 bg-red-900/80 border border-red-500 text-white hover:bg-red-800 rounded-xl text-sm font-black transition active:scale-95 shadow-md shadow-red-900/30"
+                  className="px-3 py-2.5 bg-red-900/80 border border-red-500 text-white hover:bg-red-800 rounded-xl text-xs font-black transition active:scale-95 shadow-md shadow-red-900/30"
                 >
                   Выйти
                 </button>
@@ -1128,11 +1285,29 @@ export default function Home() {
     <>
       <div className="w-full h-full bg-neutral-900 text-white p-1.5 md:p-3 font-sans flex flex-col overflow-hidden select-none">
         
-        {/* Header bar showing user and logout */}
+        {/* Header bar showing user, mode, floor and logout */}
         <div className="h-9 md:h-12 shrink-0 flex justify-between items-center w-full px-2 border-b border-neutral-800 mb-1.5 md:mb-2 text-xs">
           <div className="text-neutral-400 flex items-center gap-2">
             <span>
               Сотрудник: <span className="font-bold text-white">{userName}{shift ? ` (${shift} смена)` : ""}</span>
+            </span>
+            <span className="text-neutral-600">|</span>
+            <span className="flex items-center gap-1">
+              <span className={`font-black text-[11px] ${activeMode === 'izlishka' ? 'text-emerald-400' : 'text-blue-400'}`}>
+                {activeMode === "izlishka" ? "📦 Излишка" : "🔍 Проверка"}
+              </span>
+              <button 
+                onClick={() => {
+                  setActiveMode("");
+                  localStorage.removeItem("activeMode");
+                  setSelectedFloor("");
+                  localStorage.removeItem("selectedFloor");
+                  playSound("click");
+                }}
+                className="text-[10px] bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold px-1.5 py-0.5 rounded border border-neutral-700 ml-1 transition active:scale-95"
+              >
+                Сменить
+              </button>
             </span>
             <span className="text-neutral-600">|</span>
             <span className="flex items-center gap-1.5">
@@ -1142,30 +1317,38 @@ export default function Home() {
                   handleFloorChange("");
                   playSound("click");
                 }}
-                className="text-[11px] bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 font-bold px-2 py-0.5 rounded border border-blue-500/30 ml-2 transition active:scale-95"
+                className="text-[10px] bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 font-bold px-1.5 py-0.5 rounded border border-blue-500/30 transition active:scale-95"
               >
                 Сменить
               </button>
             </span>
           </div>
 
-          {/* Quota progress bar in the center */}
-          <div className="flex items-center gap-2 bg-neutral-800/50 px-2.5 py-1 rounded-lg border border-neutral-800/80">
-            <span className="text-[10px] font-bold text-neutral-300">
-              Прогресс: <span className="text-amber-400 font-extrabold">{completedCount}</span> / {DAILY_QUOTA}
-            </span>
-            <div className="w-14 md:w-20 h-1.5 bg-neutral-950 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-500"
-                style={{ width: `${Math.min((completedCount / DAILY_QUOTA) * 100, 100)}%` }}
-              />
+          {/* Mode-specific progress/counter */}
+          {activeMode === "izlishka" ? (
+            <div className="flex items-center gap-2 bg-emerald-950/40 px-3 py-1 rounded-lg border border-emerald-500/30">
+              <span className="text-[10px] md:text-xs font-bold text-neutral-200">
+                Yig&apos;ilgan излишка: <span className="text-emerald-400 font-black text-sm">{izlishkaCount}</span> шт
+              </span>
             </div>
-            {completedCount >= DAILY_QUOTA ? (
-              <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded font-extrabold animate-pulse">Готово!</span>
-            ) : (
-              <span className="text-[9px] text-neutral-400">{Math.round((completedCount / DAILY_QUOTA) * 100)}%</span>
-            )}
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-neutral-800/50 px-2.5 py-1 rounded-lg border border-neutral-800/80">
+              <span className="text-[10px] font-bold text-neutral-300">
+                Прогресс: <span className="text-amber-400 font-extrabold">{completedCount}</span> / {DAILY_QUOTA}
+              </span>
+              <div className="w-14 md:w-20 h-1.5 bg-neutral-950 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-500"
+                  style={{ width: `${Math.min((completedCount / DAILY_QUOTA) * 100, 100)}%` }}
+                />
+              </div>
+              {completedCount >= DAILY_QUOTA ? (
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded font-extrabold animate-pulse">Готово!</span>
+              ) : (
+                <span className="text-[9px] text-neutral-400">{Math.round((completedCount / DAILY_QUOTA) * 100)}%</span>
+              )}
+            </div>
+          )}
           
           <div className="flex items-center gap-3">
             <span className="text-[10px] bg-neutral-800 px-2.5 py-0.5 rounded text-neutral-400 border border-neutral-700">
@@ -1188,7 +1371,7 @@ export default function Home() {
             </div>
           )}
 
-          {!error && showCelebration && (
+          {!error && activeMode === "proverka" && showCelebration && (
             <div className="w-full text-center bg-neutral-800 rounded-xl flex flex-col items-center justify-center border border-neutral-700 p-6 shadow-2xl relative overflow-hidden">
               {/* Decorative glowing background gradients */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -1222,7 +1405,7 @@ export default function Home() {
             </div>
           )}
 
-          {!error && !showCelebration && !currentItem && isFetchingBackground && (
+          {!error && !(activeMode === "proverka" && showCelebration) && !currentItem && isFetchingBackground && (
             <div className="w-full text-center bg-neutral-800 rounded-xl flex flex-col items-center justify-center border border-neutral-700">
               <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-blue-500 mb-3"></div>
               <h2 className="text-lg font-bold text-white">Загрузка следующего товара...</h2>
@@ -1230,13 +1413,17 @@ export default function Home() {
             </div>
           )}
 
-          {!error && !showCelebration && !currentItem && !isFetchingBackground && (
+          {!error && !(activeMode === "proverka" && showCelebration) && !currentItem && !isFetchingBackground && (
             <div className="w-full text-center bg-neutral-800 rounded-xl flex flex-col items-center justify-center border border-neutral-700 p-4">
-              <h2 className="text-2xl font-black text-amber-400">⚠️ Для этажа {selectedFloor} нет доступных SKU</h2>
-              <p className="text-xs text-neutral-400 mt-2">В таблице больше нет товаров для проверки на этом этаже.</p>
+              <h2 className="text-2xl font-black text-amber-400">
+                ⚠️ Для этажа {selectedFloor} {activeMode === "izlishka" ? "нет излишков" : "нет доступных SKU"}
+              </h2>
+              <p className="text-xs text-neutral-400 mt-2">
+                {activeMode === "izlishka" ? "В листе 'излишка' больше нет невыполненных товаров для этого этажа." : "В таблице больше нет товаров для проверки на этом этаже."}
+              </p>
               <button 
                 onClick={() => {
-                  fetchItems(false, selectedFloor, shift);
+                  fetchItems(false, selectedFloor, shift, activeMode);
                   playSound("click");
                 }}
                 className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-sm transition active:scale-95"
@@ -1246,7 +1433,7 @@ export default function Home() {
             </div>
           )}
 
-          {!error && !showCelebration && currentItem && (
+          {!error && !(activeMode === "proverka" && showCelebration) && currentItem && (
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
               {/* Top part: Item Info (Larger fonts, scrollable name, optional image) */}
               <div className="flex-1 flex gap-3 min-h-0 overflow-hidden mb-1.5 md:mb-2.5">
@@ -1329,9 +1516,37 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Bottom part: Action buttons (Compact row but with large buttons) */}
+              {/* Bottom part: Action buttons */}
               <div className="h-12 md:h-16 shrink-0 flex gap-3">
-                {showPlacementConfirm ? (
+                {activeMode === "izlishka" ? (
+                  <>
+                    {isScanned ? (
+                      <button
+                        onClick={() => handleUpdate("Собрано")}
+                        className="flex-1 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md font-black text-base uppercase tracking-wider h-full"
+                      >
+                        <span className="text-lg">📦</span>
+                        <span>Tovarni olish</span>
+                      </button>
+                    ) : (
+                      <button
+                        disabled={true}
+                        className="flex-1 rounded-xl flex items-center justify-center gap-2 bg-neutral-700 text-neutral-400 cursor-not-allowed font-black text-base uppercase tracking-wider h-full border border-neutral-600"
+                      >
+                        <span className="text-lg">🔒</span>
+                        <span>Сканируйте штрихкод</span>
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={() => handleUpdate("Отсутствует")}
+                      className="flex-1 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 bg-red-600 hover:bg-red-500 text-white shadow-md font-black text-base uppercase tracking-wider h-full"
+                    >
+                      <span className="text-lg">❌</span>
+                      <span>Tovar joyida yo&apos;q</span>
+                    </button>
+                  </>
+                ) : showPlacementConfirm ? (
                   <div className="w-full flex items-center justify-between gap-4 bg-neutral-800/80 px-3 md:px-4 py-1 md:py-2 rounded-xl border border-neutral-700 h-full">
                     <p className="font-bold text-[10px] md:text-sm text-amber-400 leading-snug truncate max-w-[50%]">
                       Товар размещен правильно по габаритам и категории?
