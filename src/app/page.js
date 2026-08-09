@@ -1234,16 +1234,18 @@ export default function Home() {
                 <span className="text-[10px] text-blue-400 font-semibold block mt-0.5">{shift} смена</span>
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setShowStats(true);
-                    fetchStats();
-                    playSound("click");
-                  }}
-                  className="px-2.5 py-2.5 bg-neutral-850 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white rounded-xl text-xs font-bold transition active:scale-95"
-                >
-                  📊 Статистика
-                </button>
+                {activeMode !== "izlishka" && (
+                  <button
+                    onClick={() => {
+                      setShowStats(true);
+                      fetchStats();
+                      playSound("click");
+                    }}
+                    className="px-2.5 py-2.5 bg-neutral-850 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white rounded-xl text-xs font-bold transition active:scale-95"
+                  >
+                    📊 Статистика
+                  </button>
+                )}
                 <button 
                   onClick={() => {
                     handleLogout();
