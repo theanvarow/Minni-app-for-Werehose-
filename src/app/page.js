@@ -1285,29 +1285,11 @@ export default function Home() {
     <>
       <div className="w-full h-full bg-neutral-900 text-white p-1.5 md:p-3 font-sans flex flex-col overflow-hidden select-none">
         
-        {/* Header bar showing user, mode, floor and logout */}
+        {/* Header bar showing user, floor and logout */}
         <div className="h-9 md:h-12 shrink-0 flex justify-between items-center w-full px-2 border-b border-neutral-800 mb-1.5 md:mb-2 text-xs">
           <div className="text-neutral-400 flex items-center gap-2">
             <span>
               Сотрудник: <span className="font-bold text-white">{userName}{shift ? ` (${shift} смена)` : ""}</span>
-            </span>
-            <span className="text-neutral-600">|</span>
-            <span className="flex items-center gap-1">
-              <span className={`font-black text-[11px] ${activeMode === 'izlishka' ? 'text-emerald-400' : 'text-blue-400'}`}>
-                {activeMode === "izlishka" ? "📦 Излишка" : "🔍 Проверка"}
-              </span>
-              <button 
-                onClick={() => {
-                  setActiveMode("");
-                  localStorage.removeItem("activeMode");
-                  setSelectedFloor("");
-                  localStorage.removeItem("selectedFloor");
-                  playSound("click");
-                }}
-                className="text-[10px] bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold px-1.5 py-0.5 rounded border border-neutral-700 ml-1 transition active:scale-95"
-              >
-                Сменить
-              </button>
             </span>
             <span className="text-neutral-600">|</span>
             <span className="flex items-center gap-1.5">
