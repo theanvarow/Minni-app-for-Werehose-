@@ -1301,7 +1301,7 @@ export default function Home() {
                 }}
                 className="text-[10px] bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 font-bold px-1.5 py-0.5 rounded border border-blue-500/30 transition active:scale-95"
               >
-                Сменить
+                Сменить этаж
               </button>
             </span>
           </div>
