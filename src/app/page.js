@@ -1328,7 +1328,7 @@ export default function Home() {
           {activeMode === "izlishka" ? (
             <div className="flex items-center gap-2 bg-emerald-950/40 px-3 py-1 rounded-lg border border-emerald-500/30">
               <span className="text-[10px] md:text-xs font-bold text-neutral-200">
-                Yig&apos;ilgan излишка: <span className="text-emerald-400 font-black text-sm">{izlishkaCount}</span> шт
+                Собрано излишков: <span className="text-emerald-400 font-black text-sm">{izlishkaCount}</span> шт
               </span>
             </div>
           ) : (
@@ -1526,7 +1526,7 @@ export default function Home() {
                         className="flex-1 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md font-black text-base uppercase tracking-wider h-full"
                       >
                         <span className="text-lg">📦</span>
-                        <span>Tovarni olish</span>
+                        <span>Взять товар</span>
                       </button>
                     ) : (
                       <button
@@ -1543,7 +1543,7 @@ export default function Home() {
                       className="flex-1 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 bg-red-600 hover:bg-red-500 text-white shadow-md font-black text-base uppercase tracking-wider h-full"
                     >
                       <span className="text-lg">❌</span>
-                      <span>Tovar joyida yo&apos;q</span>
+                      <span>Товара нет на месте</span>
                     </button>
                   </>
                 ) : showPlacementConfirm ? (
