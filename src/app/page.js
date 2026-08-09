@@ -1150,7 +1150,7 @@ export default function Home() {
                 <div className="flex items-center gap-3">
                   <span className="text-3xl">📦</span>
                   <div>
-                    <h3 className="font-black text-base text-white group-hover:text-emerald-300 transition">Сбор излишков (Излишка)</h3>
+                    <h3 className="font-black text-base text-white group-hover:text-emerald-300 transition">Сбор излишков</h3>
                     <p className="text-xs text-neutral-400 mt-0.5">Поиск и сбор излишков товаров по этажам</p>
                   </div>
                 </div>
@@ -1222,7 +1222,7 @@ export default function Home() {
             <div className="mb-3 px-3 py-1.5 bg-neutral-900/60 border border-neutral-700 rounded-xl flex items-center gap-2 text-xs">
               <span className="text-neutral-400 font-medium">Режим:</span>
               <span className={`font-black ${activeMode === 'izlishka' ? 'text-emerald-400' : 'text-blue-400'}`}>
-                {activeMode === "izlishka" ? "📦 Сбор излишков (Излишка)" : "🔍 Проверка размещения"}
+                {activeMode === "izlishka" ? "📦 Сбор излишков" : "🔍 Проверка размещения"}
               </span>
             </div>
 
