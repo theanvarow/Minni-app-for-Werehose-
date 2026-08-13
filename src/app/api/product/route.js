@@ -3,10 +3,16 @@ import { NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+// Serverni vaqtincha to'xtatish (Maintenance Mode / Server Disconnected Switch)
+const IS_SERVER_STOPPED = true;
+
 const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL;
 
 export async function GET(request) {
   try {
+    if (IS_SERVER_STOPPED) {
+      return NextResponse.json({ success: false, error: "Server vaqtincha to'xtatilgan (Server is stopped / disconnected)" }, { status: 503 });
+    }
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 

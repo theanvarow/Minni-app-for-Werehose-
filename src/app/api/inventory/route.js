@@ -3,10 +3,18 @@ import { NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+// Serverni vaqtincha to'xtatish (Maintenance Mode / Server Disconnected Switch)
+// Serverni qayta yoqish uchun ushbu qiymatni `false` ga o'zgartiring.
+const IS_SERVER_STOPPED = true;
+
 const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL;
 
 export async function GET(request) {
   try {
+    if (IS_SERVER_STOPPED) {
+      return NextResponse.json({ success: false, error: "Server vaqtincha to'xtatilgan (Server is stopped / disconnected)" }, { status: 503 });
+    }
+
     if (!GOOGLE_SCRIPT_URL) {
       return NextResponse.json({ success: false, error: "GOOGLE_SCRIPT_URL не настроен (проверьте файл .env.local)" }, { status: 500 });
     }
@@ -50,6 +58,10 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    if (IS_SERVER_STOPPED) {
+      return NextResponse.json({ success: false, error: "Server vaqtincha to'xtatilgan (Server is stopped / disconnected)" }, { status: 503 });
+    }
+
     if (!GOOGLE_SCRIPT_URL) {
       return NextResponse.json({ success: false, error: "GOOGLE_SCRIPT_URL не настроен (проверьте файл .env.local)" }, { status: 500 });
     }
