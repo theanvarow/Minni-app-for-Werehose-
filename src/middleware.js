@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 
 export function middleware(request) {
-  // Completely stop the app and disconnect from Vercel/Server
+  // Completely stop the app and disconnect from Vercel/Server (Russian version)
   return new NextResponse(
     `<!DOCTYPE html>
-    <html lang="uz">
+    <html lang="ru">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Dastur To'xtatilgan</title>
+      <title>Приложение остановлено</title>
       <style>
         body {
           font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -37,8 +37,8 @@ export function middleware(request) {
     <body>
       <div class="card">
         <div class="icon">⛔</div>
-        <h1>Dastur to'xtatildi</h1>
-        <p>Ushbu dastur serverdan (Vercel) to'liq uzildi va ish faoliyati vaqtincha to'xtatildi.</p>
+        <h1>Приложение остановлено</h1>
+        <p>Данное приложение полностью отключено от сервера (Vercel) и его работа временно приостановлена.</p>
       </div>
     </body>
     </html>`,
