@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 // Serverni vaqtincha to'xtatish (Maintenance Mode / Server Disconnected Switch)
-const IS_SERVER_STOPPED = true;
+const IS_SERVER_STOPPED = false;
 
 const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL;
 

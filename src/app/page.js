@@ -75,6 +75,16 @@ export default function Home() {
   const [activeMode, setActiveMode] = useState(""); // "proverka" | "izlishka"
   const [izlishkaCount, setIzlishkaCount] = useState(0);
 
+  const [actionToast, setActionToast] = useState(null);
+
+  useEffect(() => {
+    if (!actionToast) return;
+    const timer = setTimeout(() => {
+      setActionToast(null);
+    }, 1400);
+    return () => clearTimeout(timer);
+  }, [actionToast]);
+
   const [isScanned, setIsScanned] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
   const [overrideQuota, setOverrideQuota] = useState(false);
@@ -163,10 +173,13 @@ export default function Home() {
     const cleanCurrent = currentItem.barcode.replace(/\D/g, "");
 
     if (cleanScanned === cleanCurrent) {
-      playSound("success");
       setIsScanned(true);
       if (activeMode === "proverka") {
+        playSound("success");
         setShowPlacementConfirm(true); // Automatically show dimension confirmation in Proverka mode
+      } else if (activeMode === "izlishka") {
+        // Automatically submit and move to next item in Izlishka mode without pressing button
+        handleUpdate("Собрано");
       }
     } else {
       playSound("warning");
@@ -421,8 +434,13 @@ export default function Home() {
 
     if (status === "Подтвержден" || status === "Собрано") {
       playSound("success");
+      const msg = activeMode === "izlishka" 
+        ? "✅ Излишек собран! Переход к следующему..." 
+        : "✅ Подтверждено! Переход к следующему...";
+      setActionToast({ text: msg, type: "success", id: Date.now() });
     } else if (status === "Отсутствует") {
       playSound("warning");
+      setActionToast({ text: "❌ Отмечено как отсутствующий. Переход к следующему...", type: "missing", id: Date.now() });
     }
 
     // Mark as verified so we don't fetch it again while backend is syncing
@@ -452,8 +470,8 @@ export default function Home() {
       });
     }
 
-    // If queue is getting low (< 3), fetch more in the background
-    if (itemQueue.length - 1 <= 3) {
+    // If queue is getting low (<= 5), fetch more in the background so user never waits
+    if (itemQueue.length - 1 <= 5) {
       fetchItems(true, selectedFloor, shift, activeMode);
     }
 
@@ -472,7 +490,8 @@ export default function Home() {
           shiftName: `${shift} смена`, 
           placementCorrect,
           timestamp: formattedTimestamp,
-          mode: activeMode
+          mode: activeMode,
+          floor: selectedFloor
         }),
       });
       // We don't need to await or do anything here. If it succeeds, great.
@@ -1260,14 +1279,18 @@ export default function Home() {
 
             {/* Floor selector buttons */}
             <div className="grid grid-cols-3 gap-3">
-              {["M1", "M2", "M3", "M4", "M5"].map((floorVal) => (
+              {["M1", "M2", "M3", "M4", "M5", "СГТ"].map((floorVal) => (
                 <button
                   key={floorVal}
                   onClick={() => {
                     handleFloorChange(floorVal);
                     playSound("click");
                   }}
-                  className="py-5 rounded-2xl font-black text-2xl transition-all active:scale-95 bg-neutral-700 text-neutral-200 hover:bg-amber-500 hover:text-neutral-900 border border-neutral-600 hover:border-amber-400 shadow-md"
+                  className={`py-5 rounded-2xl font-black text-2xl transition-all active:scale-95 border shadow-md ${
+                    floorVal === "СГТ"
+                      ? "bg-purple-900/60 text-purple-200 hover:bg-purple-600 hover:text-white border-purple-500/50 hover:border-purple-400"
+                      : "bg-neutral-700 text-neutral-200 hover:bg-amber-500 hover:text-neutral-900 border-neutral-600 hover:border-amber-400"
+                  }`}
                 >
                   {floorVal}
                 </button>
@@ -1285,6 +1308,20 @@ export default function Home() {
 
   return (
     <>
+      {actionToast && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[10000] pointer-events-none transition-all duration-300">
+          <div className={`px-5 py-2.5 rounded-2xl shadow-2xl border flex items-center gap-2.5 font-extrabold text-xs md:text-sm backdrop-blur-xl ${
+            actionToast.type === 'success' 
+              ? 'bg-emerald-950/95 border-emerald-500/80 text-emerald-200 shadow-emerald-900/60 ring-2 ring-emerald-500/30' 
+              : 'bg-red-950/95 border-red-500/80 text-red-200 shadow-red-900/60 ring-2 ring-red-500/30'
+          }`}>
+            <span className="text-lg md:text-xl animate-pulse">
+              {actionToast.type === 'success' ? '⚡️' : '⚠️'}
+            </span>
+            <span>{actionToast.text}</span>
+          </div>
+        </div>
+      )}
       <div className="w-full h-full bg-neutral-900 text-white p-1.5 md:p-3 font-sans flex flex-col overflow-hidden select-none">
         
         {/* Header bar showing user, floor and logout */}
@@ -1403,7 +1440,7 @@ export default function Home() {
                 ⚠️ Для этажа {selectedFloor} {activeMode === "izlishka" ? "нет излишков" : "нет доступных SKU"}
               </h2>
               <p className="text-xs text-neutral-400 mt-2">
-                {activeMode === "izlishka" ? "В листе 'излишка' больше нет невыполненных товаров для этого этажа." : "В таблице больше нет товаров для проверки на этом этаже."}
+                {selectedFloor === "СГТ" ? "В листе 'СГТ' больше нет невыполненных товаров." : (activeMode === "izlishka" ? "В листе 'излишка' больше нет невыполненных товаров для этого этажа." : "В таблице больше нет товаров для проверки на этом этаже.")}
               </p>
               <button 
                 onClick={() => {

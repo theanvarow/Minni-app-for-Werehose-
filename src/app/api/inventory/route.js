@@ -5,7 +5,7 @@ export const revalidate = 0;
 
 // Serverni vaqtincha to'xtatish (Maintenance Mode / Server Disconnected Switch)
 // Serverni qayta yoqish uchun ushbu qiymatni `false` ga o'zgartiring.
-const IS_SERVER_STOPPED = true;
+const IS_SERVER_STOPPED = false;
 
 const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL;
 
@@ -67,7 +67,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { rowIndex, status, userName, shift, shiftName, placementCorrect, timestamp, mode } = body;
+    const { rowIndex, status, userName, shift, shiftName, placementCorrect, timestamp, mode, floor } = body;
 
     if (!rowIndex || !status || !userName) {
       return NextResponse.json({ success: false, error: "Данные неполные (требуется имя пользователя)" }, { status: 400 });
@@ -78,7 +78,7 @@ export async function POST(request) {
       headers: {
         'Content-Type': 'text/plain;charset=utf-8', 
       },
-      body: JSON.stringify({ rowIndex, status, userName, shift, shiftName, placementCorrect, timestamp, mode })
+      body: JSON.stringify({ rowIndex, status, userName, shift, shiftName, placementCorrect, timestamp, mode, floor })
     });
 
     const data = await response.json();
