@@ -1279,7 +1279,7 @@ export default function Home() {
 
             {/* Floor selector buttons */}
             <div className="grid grid-cols-3 gap-3">
-              {["M1", "M2", "M3", "M4", "M5", "СГТ"].map((floorVal) => (
+              {(activeMode === "izlishka" ? ["M1", "M2", "M3", "M4", "M5", "СГТ"] : ["M1", "M2", "M3", "M4", "M5"]).map((floorVal) => (
                 <button
                   key={floorVal}
                   onClick={() => {
