@@ -274,7 +274,7 @@ function doPost(e) {
 
 function getStats(ss, force) {
   var cache = CacheService.getScriptCache();
-  var cacheKey = "inventory_stats_cache_v8";
+  var cacheKey = "inventory_stats_cache_v9";
 
   if (!force) {
     try {
@@ -362,11 +362,10 @@ function getStats(ss, force) {
         if (!isNaN(parsedQty) && parsedQty > 0) itemQty = parsedQty;
       }
       
-      // For shift sheets: skip un-audited rows (empty status)
-      // For Izlishka sheet: if status is empty BUT userName or valid barcode exists, treat status as "Собрано"
+      // If status is empty BUT userName or valid barcode exists, treat status as "Подтвержден" / "Собрано"
       if (!status || status === "") {
-        if (isIzlishkaSheet && (userName !== "" || barcode.indexOf("row_") === -1)) {
-          status = "Собрано";
+        if (userName !== "" || barcode.indexOf("row_") === -1) {
+          status = "Подтвержден";
         } else {
           continue;
         }
