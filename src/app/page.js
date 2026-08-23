@@ -770,15 +770,10 @@ export default function Home() {
                                               
                                               return (
                                                 <div key={u} className="flex justify-between items-center text-neutral-200 py-0.5 text-[9px]">
-                                                  <span className="font-bold text-neutral-100 truncate max-w-[50%]" title={u}>{u}</span>
-                                                  <div className="flex items-center gap-1 font-mono">
-                                                    <span className="text-emerald-400 font-bold" title="Найдено">✓{uConf}</span>
-                                                    {uMiss > 0 && <span className="text-red-400 font-bold" title="Отсутствует">✗{uMiss}</span>}
-                                                    {uPlac > 0 && <span className="text-amber-300 font-bold" title="Правильное размещение">🎯{uPlac}</span>}
-                                                    <span className="font-mono text-amber-400 font-black bg-amber-500/10 px-1 py-0.5 rounded ml-0.5">
-                                                      {uSku} SKU ({uQty} шт)
-                                                    </span>
-                                                  </div>
+                                                  <span className="font-bold text-neutral-100 truncate max-w-[65%]" title={u}>{u}</span>
+                                                  <span className="font-mono text-amber-400 font-black text-[9px] bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                                    {uSku > 0 && uQty !== uSku ? `${uSku} SKU (${uQty} шт)` : `${uQty} шт`}
+                                                  </span>
                                                 </div>
                                               );
                                             })}
