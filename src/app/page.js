@@ -70,6 +70,10 @@ export default function Home() {
   const [gotovaStatsError, setGotovaStatsError] = useState("");
   const [selectedGotovaMonth, setSelectedGotovaMonth] = useState("");
 
+  // 'излишка' Statistics states
+  const [showIzlishkaStats, setShowIzlishkaStats] = useState(false);
+  const [selectedIzlishkaDateStr, setSelectedIzlishkaDateStr] = useState("");
+
 
 
   const [activeMode, setActiveMode] = useState(""); // "proverka" | "izlishka"
@@ -529,6 +533,37 @@ export default function Home() {
             </button>
           </div>
 
+          {/* Quick Navigation Bar between Stats */}
+          <div className="mb-3 flex items-center justify-center gap-2 bg-neutral-950/60 p-1.5 rounded-xl border border-neutral-800 text-[10px] font-bold shrink-0">
+            <button
+              className="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm"
+            >
+              📊 Смены
+            </button>
+            <button
+              onClick={() => {
+                setShowStats(false);
+                setShowIzlishkaStats(true);
+                fetchStats();
+                playSound("click");
+              }}
+              className="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+            >
+              📦 Излишка
+            </button>
+            <button
+              onClick={() => {
+                setShowStats(false);
+                setShowGotovaStats(true);
+                fetchGotovaStats();
+                playSound("click");
+              }}
+              className="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+            >
+              📈 Аналитика
+            </button>
+          </div>
+
           {/* Date Selector Filter */}
           {!loadingStats && !statsError && statsData && Object.keys(statsData).length > 0 && (
             <div className="mb-3 bg-neutral-800/30 border border-neutral-800/80 p-2.5 rounded-xl flex items-center justify-between gap-3 shrink-0 text-[11px]">
@@ -782,6 +817,37 @@ export default function Home() {
             </button>
           </div>
 
+          {/* Quick Navigation Bar between Stats */}
+          <div className="mb-3 flex items-center justify-center gap-2 bg-neutral-950/60 p-1.5 rounded-xl border border-neutral-800 text-[10px] font-bold shrink-0">
+            <button
+              onClick={() => {
+                setShowGotovaStats(false);
+                setShowStats(true);
+                fetchStats();
+                playSound("click");
+              }}
+              className="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+            >
+              📊 Смены
+            </button>
+            <button
+              onClick={() => {
+                setShowGotovaStats(false);
+                setShowIzlishkaStats(true);
+                fetchStats();
+                playSound("click");
+              }}
+              className="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+            >
+              📦 Излишка
+            </button>
+            <button
+              className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm"
+            >
+              📈 Аналитика
+            </button>
+          </div>
+
           {/* Month Selector Filter */}
           {!loadingGotovaStats && !gotovaStatsError && monthlyKeys.length > 0 && (
             <div className="mb-3 bg-neutral-800/30 border border-neutral-800/80 p-2.5 rounded-xl flex items-center justify-between gap-3 shrink-0 text-[11px]">
@@ -1009,6 +1075,331 @@ export default function Home() {
     );
   };
 
+  const renderIzlishkaStatsModal = () => {
+    if (!showIzlishkaStats) return null;
+
+    return (
+      <div className="fixed inset-0 bg-neutral-950/85 backdrop-blur-md z-[9999] flex items-center justify-center p-2 sm:p-4 overflow-y-auto font-sans">
+        <div className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-2xl flex flex-col max-h-[96vh] overflow-hidden text-left">
+          {/* Header */}
+          <div className="flex justify-between items-center border-b border-neutral-800 pb-2.5 mb-2.5 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xl sm:text-2xl">📦</span>
+              <div>
+                <h2 className="text-sm sm:text-base font-black text-emerald-400 leading-none">
+                  Kunlik Izlishka Statistikasi
+                </h2>
+                <p className="text-[10px] text-neutral-400 mt-1">
+                  Xodimlar bo&apos;yicha bajarilgan ishlar (&quot;Kim nechta qildi&quot;)
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowIzlishkaStats(false);
+                playSound("click");
+              }}
+              className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition active:scale-95"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Quick Navigation Bar between Stats */}
+          <div className="mb-3 flex items-center justify-center gap-2 bg-neutral-950/60 p-1.5 rounded-xl border border-neutral-800 text-[10px] font-bold shrink-0">
+            <button
+              onClick={() => {
+                setShowIzlishkaStats(false);
+                setShowStats(true);
+                fetchStats();
+                playSound("click");
+              }}
+              className="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+            >
+              📊 Смены
+            </button>
+            <button
+              className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+            >
+              📦 Излишка
+            </button>
+            <button
+              onClick={() => {
+                setShowIzlishkaStats(false);
+                setShowGotovaStats(true);
+                fetchGotovaStats();
+                playSound("click");
+              }}
+              className="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+            >
+              📈 Аналитика
+            </button>
+          </div>
+
+          {/* Date Selector Filter */}
+          {!loadingStats && !statsError && statsData && Object.keys(statsData).length > 0 && (
+            <div className="mb-3 bg-neutral-800/30 border border-neutral-800/80 p-2.5 rounded-xl flex items-center justify-between gap-3 shrink-0 text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className="text-neutral-400 font-semibold">Sana bo&apos;yicha filtr:</span>
+                {selectedIzlishkaDateStr && (
+                  <button
+                    onClick={() => {
+                      setSelectedIzlishkaDateStr("");
+                      playSound("click");
+                    }}
+                    className="bg-red-950/80 hover:bg-red-900 border border-red-500/30 px-1.5 py-0.5 rounded text-[9px] text-white font-bold transition active:scale-95"
+                  >
+                    Barcha kunlar
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={selectedIzlishkaDateStr}
+                  onChange={(e) => {
+                    setSelectedIzlishkaDateStr(e.target.value);
+                    playSound("click");
+                  }}
+                  className="bg-neutral-800 border border-neutral-700 rounded-lg px-2.5 py-1 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-[10px] cursor-pointer select-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Main Scrollable Content */}
+          <div className="flex-1 overflow-y-auto pr-1 min-h-0">
+            {loadingStats && (
+              <div className="py-12 flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-emerald-500 mb-2"></div>
+                <p className="text-xs text-neutral-400 font-medium animate-pulse">Izlishka statistikasi yuklanmoqda...</p>
+              </div>
+            )}
+
+            {statsError && (
+              <div className="py-8 text-center">
+                <p className="text-red-400 font-bold text-xs mb-2">⚠️ {statsError}</p>
+                <button
+                  onClick={fetchStats}
+                  className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-[10px] font-bold rounded-lg transition"
+                >
+                  Qayta urinish
+                </button>
+              </div>
+            )}
+
+            {!loadingStats && !statsError && statsData && (
+              <div className="flex flex-col gap-3">
+                {(() => {
+                  const izlishkaDates = Object.keys(statsData).filter((dateStr) => {
+                    if (selectedIzlishkaDateStr && dateStr !== selectedIzlishkaDateStr) return false;
+                    const dayObj = statsData[dateStr];
+                    if (!dayObj) return false;
+                    const izKey = Object.keys(dayObj).find(
+                      k => k.toLowerCase() === "излишка" || k.toLowerCase() === "izlishka" || k.toLowerCase() === "излишки"
+                    );
+                    return !!izKey && (dayObj[izKey].total > 0 || Object.keys(dayObj[izKey].users || {}).length > 0);
+                  });
+
+                  if (izlishkaDates.length === 0) {
+                    return (
+                      <div className="text-center py-10 bg-neutral-800/20 border border-neutral-800 rounded-xl p-4">
+                        <span className="text-3xl block mb-2">📦</span>
+                        <p className="text-neutral-400 text-xs font-semibold">
+                          {selectedIzlishkaDateStr
+                            ? "Tanlangan sana bo'yicha izlishka statistikasi topilmadi."
+                            : "Hali izlishka bo'limi bo'yicha ma'lumotlar mavjud emas."}
+                        </p>
+                        {selectedIzlishkaDateStr && (
+                          <button
+                            onClick={() => {
+                              setSelectedIzlishkaDateStr("");
+                              playSound("click");
+                            }}
+                            className="mt-3 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition active:scale-95"
+                          >
+                            Barcha kunlarni ko&apos;rsatish
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return izlishkaDates
+                    .sort((a, b) => new Date(b) - new Date(a))
+                    .map((dateStr) => {
+                      const dayObj = statsData[dateStr];
+                      const izKey = Object.keys(dayObj).find(
+                        k => k.toLowerCase() === "излишка" || k.toLowerCase() === "izlishka" || k.toLowerCase() === "излишки"
+                      );
+                      const izData = dayObj[izKey] || { total: 0, confirmed: 0, missing: 0, users: {} };
+                      
+                      const formattedDate = new Date(dateStr).toLocaleDateString('ru-RU', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      });
+
+                      const totalItems = izData.total || 0;
+                      const confirmedItems = izData.confirmed || 0;
+                      const missingItems = izData.missing || 0;
+                      const usersMap = izData.users || {};
+
+                      const userEntries = Object.entries(usersMap).sort((a, b) => b[1] - a[1]);
+                      const activeWorkerCount = userEntries.length;
+                      const topUser = userEntries.length > 0 ? userEntries[0] : null;
+
+                      return (
+                        <div key={dateStr} className="bg-neutral-800/40 border border-neutral-800/90 rounded-2xl p-3.5 shadow-md">
+                          {/* Date & Overall Header */}
+                          <div className="flex justify-between items-center mb-3 pb-2 border-b border-neutral-700/60">
+                            <div>
+                              <h3 className="text-xs sm:text-sm font-black text-amber-400 flex items-center gap-1.5">
+                                📅 <span>{formattedDate}</span>
+                              </h3>
+                              <p className="text-[10px] text-neutral-400 mt-0.5">
+                                Jami yig&apos;ilgan izlishka: <strong className="text-emerald-400 font-extrabold">{totalItems} ta</strong>
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px]">
+                              <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold px-2 py-0.5 rounded-lg">
+                                Topildi: {confirmedItems} ta
+                              </span>
+                              {missingItems > 0 && (
+                                <span className="bg-red-500/10 border border-red-500/30 text-red-400 font-extrabold px-2 py-0.5 rounded-lg">
+                                  Topilmadi: {missingItems} ta
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quick Summary Widgets */}
+                          <div className="grid grid-cols-3 gap-2 mb-3">
+                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center">
+                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Jami izlishka</span>
+                              <span className="text-xs sm:text-sm font-black text-emerald-400">{totalItems} шт</span>
+                            </div>
+                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center">
+                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Faol xodimlar</span>
+                              <span className="text-xs sm:text-sm font-black text-blue-400">{activeWorkerCount} kishi</span>
+                            </div>
+                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center truncate">
+                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Lider</span>
+                              <span className="text-xs sm:text-sm font-black text-amber-400 truncate block">
+                                {topUser ? `${topUser[0].split(" ")[0]} (${topUser[1]})` : "-"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Employee Leaderboard ("Kim nechta qildi") */}
+                          <div>
+                            <h4 className="text-[10px] font-extrabold text-neutral-300 uppercase tracking-wider mb-2 flex items-center justify-between">
+                              <span>👥 Xodimlar reytingi (&quot;Kim nechta qildi&quot;)</span>
+                              <span className="text-neutral-500 text-[9px] font-normal">{userEntries.length} ta xodim</span>
+                            </h4>
+
+                            {userEntries.length === 0 ? (
+                              <p className="text-[10px] text-neutral-500 italic">Xodimlar ma&apos;lumoti yo&apos;q</p>
+                            ) : (
+                              <div className="flex flex-col gap-1.5">
+                                {userEntries.map(([uName, uCount], idx) => {
+                                  const pct = totalItems > 0 ? Math.round((uCount / totalItems) * 100) : 0;
+                                  
+                                  let rankBadge = "👤";
+                                  let rankClass = "bg-neutral-800 text-neutral-400 border-neutral-700";
+                                  if (idx === 0) {
+                                    rankBadge = "🥇 1-o'rin";
+                                    rankClass = "bg-amber-500/20 text-amber-300 border-amber-500/40 font-black";
+                                  } else if (idx === 1) {
+                                    rankBadge = "🥈 2-o'rin";
+                                    rankClass = "bg-slate-400/20 text-slate-300 border-slate-400/40 font-black";
+                                  } else if (idx === 2) {
+                                    rankBadge = "🥉 3-o'rin";
+                                    rankClass = "bg-amber-700/20 text-amber-500 border-amber-700/40 font-black";
+                                  } else {
+                                    rankBadge = `${idx + 1}-o'rin`;
+                                  }
+
+                                  return (
+                                    <div
+                                      key={uName}
+                                      className="bg-neutral-900/80 border border-neutral-800 rounded-xl p-2 flex flex-col gap-1 text-[11px]"
+                                    >
+                                      <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-2 min-w-0 pr-2">
+                                          <span className={`text-[9px] px-1.5 py-0.5 rounded border ${rankClass} shrink-0`}>
+                                            {rankBadge}
+                                          </span>
+                                          <span className="font-extrabold text-white truncate" title={uName}>
+                                            {uName}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0 font-mono">
+                                          <span className="font-black text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+                                            {uCount} ta
+                                          </span>
+                                          <span className="text-[10px] text-neutral-400 font-bold w-10 text-right">
+                                            ({pct}%)
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {/* Individual Progress bar */}
+                                      <div className="w-full h-1.5 bg-neutral-950 rounded-full overflow-hidden">
+                                        <div
+                                          className={`h-full transition-all duration-500 rounded-full ${
+                                            idx === 0
+                                              ? 'bg-gradient-to-r from-amber-500 via-emerald-400 to-teal-300'
+                                              : idx === 1
+                                              ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                                              : 'bg-gradient-to-r from-teal-600 to-emerald-500'
+                                          }`}
+                                          style={{ width: `${Math.max(pct, 2)}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* Footer close */}
+          <div className="mt-3 border-t border-neutral-800 pt-2.5 flex justify-between items-center shrink-0">
+            <button
+              onClick={() => {
+                fetchStats();
+                playSound("click");
+              }}
+              className="text-[10px] text-neutral-400 hover:text-white font-bold flex items-center gap-1 transition"
+            >
+              🔄 Yangilash
+            </button>
+            <button
+              onClick={() => {
+                setShowIzlishkaStats(false);
+                playSound("click");
+              }}
+              className="px-4 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg text-[10px] font-bold transition active:scale-95"
+            >
+              Yopish
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
 
 
   const renderOrientationOverlay = () => {
@@ -1076,7 +1467,7 @@ export default function Home() {
             </form>
             
             {/* Statistics buttons */}
-            <div className="mt-4 pt-3 border-t border-neutral-700 flex justify-center gap-3.5 items-center">
+            <div className="mt-4 pt-3 border-t border-neutral-700 flex justify-center gap-2.5 items-center flex-wrap">
               <button
                 type="button"
                 onClick={() => {
@@ -1086,7 +1477,19 @@ export default function Home() {
                 }}
                 className="text-[11px] text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 transition-all active:scale-95"
               >
-                📊 Статистика смен
+                📊 Смены
+              </button>
+              <span className="text-neutral-600">|</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowIzlishkaStats(true);
+                  fetchStats();
+                  playSound("click");
+                }}
+                className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-all active:scale-95"
+              >
+                📦 Излишка
               </button>
               <span className="text-neutral-600">|</span>
               <button
@@ -1098,14 +1501,17 @@ export default function Home() {
                 }}
                 className="text-[11px] text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 transition-all active:scale-95"
               >
-                📈 Аналитика (Готова)
+                📈 Аналитика
               </button>
             </div>
+
           </div>
         </div>
         {renderOrientationOverlay()}
         {renderStatsModal()}
         {renderGotovaStatsModal()}
+        {renderIzlishkaStatsModal()}
+
       </>
     );
   }
@@ -1177,7 +1583,7 @@ export default function Home() {
             </div>
 
             {/* Statistics buttons */}
-            <div className="mt-4 pt-3 border-t border-neutral-700 flex justify-center gap-3.5 items-center">
+            <div className="mt-4 pt-3 border-t border-neutral-700 flex justify-center gap-2.5 items-center flex-wrap">
               <button
                 type="button"
                 onClick={() => {
@@ -1193,6 +1599,18 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => {
+                  setShowIzlishkaStats(true);
+                  fetchStats();
+                  playSound("click");
+                }}
+                className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-all active:scale-95"
+              >
+                📦 Излишка статистикаsi
+              </button>
+              <span className="text-neutral-600">|</span>
+              <button
+                type="button"
+                onClick={() => {
                   setShowGotovaStats(true);
                   fetchGotovaStats();
                   playSound("click");
@@ -1203,11 +1621,14 @@ export default function Home() {
               </button>
             </div>
 
+
           </div>
         </div>
         {renderOrientationOverlay()}
         {renderStatsModal()}
         {renderGotovaStatsModal()}
+        {renderIzlishkaStatsModal()}
+
       </>
     );
   }
@@ -1253,18 +1674,23 @@ export default function Home() {
                 <span className="text-[10px] text-blue-400 font-semibold block mt-0.5">{shift} смена</span>
               </div>
               <div className="flex gap-2">
-                {activeMode !== "izlishka" && (
-                  <button
-                    onClick={() => {
+                <button
+                  onClick={() => {
+                    if (activeMode === "izlishka") {
+                      setShowIzlishkaStats(true);
+                    } else {
                       setShowStats(true);
-                      fetchStats();
-                      playSound("click");
-                    }}
-                    className="px-2.5 py-2.5 bg-neutral-850 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white rounded-xl text-xs font-bold transition active:scale-95"
-                  >
-                    📊 Статистика
-                  </button>
-                )}
+                    }
+                    fetchStats();
+                    playSound("click");
+                  }}
+                  className={`px-2.5 py-2.5 bg-neutral-850 hover:bg-neutral-800 border rounded-xl text-xs font-bold transition active:scale-95 flex items-center gap-1 ${
+                    activeMode === "izlishka" ? "text-emerald-400 border-emerald-500/40" : "text-neutral-300 border-neutral-700 hover:text-white"
+                  }`}
+                >
+                  {activeMode === "izlishka" ? "📦 Statistika" : "📊 Статистика"}
+                </button>
+
                 <button 
                   onClick={() => {
                     handleLogout();
@@ -1302,6 +1728,8 @@ export default function Home() {
         {renderOrientationOverlay()}
         {renderStatsModal()}
         {renderGotovaStatsModal()}
+        {renderIzlishkaStatsModal()}
+
       </>
     );
   }
@@ -1347,10 +1775,23 @@ export default function Home() {
 
           {/* Mode-specific progress/counter */}
           {activeMode === "izlishka" ? (
-            <div className="flex items-center gap-2 bg-emerald-950/40 px-3 py-1 rounded-lg border border-emerald-500/30">
-              <span className="text-[10px] md:text-xs font-bold text-neutral-200">
-                Собрано излишков: <span className="text-emerald-400 font-black text-sm">{izlishkaCount}</span> шт
-              </span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 bg-emerald-950/40 px-3 py-1 rounded-lg border border-emerald-500/30">
+                <span className="text-[10px] md:text-xs font-bold text-neutral-200">
+                  Собрано излишков: <span className="text-emerald-400 font-black text-sm">{izlishkaCount}</span> шт
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowIzlishkaStats(true);
+                  fetchStats();
+                  playSound("click");
+                }}
+                className="text-[10px] bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold px-2 py-1 rounded-lg border border-emerald-500/30 transition active:scale-95 flex items-center gap-1"
+              >
+                📦 Statistika
+              </button>
             </div>
           ) : (
             <div className="flex items-center gap-2 bg-neutral-800/50 px-2.5 py-1 rounded-lg border border-neutral-800/80">
@@ -1636,6 +2077,7 @@ export default function Home() {
       {renderOrientationOverlay()}
       {renderStatsModal()}
       {renderGotovaStatsModal()}
+      {renderIzlishkaStatsModal()}
     </>
   );
 }

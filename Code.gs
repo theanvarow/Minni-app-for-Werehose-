@@ -270,6 +270,10 @@ function getStats(ss) {
     var sheet = sheets[s];
     var sheetName = sheet.getName().trim();
     var sLower = sheetName.toLowerCase();
+    var normalizedKey = sheetName;
+    if (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka") {
+      normalizedKey = "излишка";
+    }
     
     // Ignore non-shift sheets except we process shift sheets
     if (sLower.indexOf("готова") !== -1 || sLower.indexOf("gotova") !== -1 || sLower.indexOf("отчет") !== -1 || sLower.indexOf("report") !== -1) {
@@ -374,8 +378,8 @@ function getStats(ss) {
         stats[formattedDate] = {};
       }
       
-      if (!stats[formattedDate][sheetName]) {
-        stats[formattedDate][sheetName] = {
+      if (!stats[formattedDate][normalizedKey]) {
+        stats[formattedDate][normalizedKey] = {
           total: 0,
           confirmed: 0,
           missing: 0,
@@ -385,7 +389,7 @@ function getStats(ss) {
         };
       }
       
-      var sData = stats[formattedDate][sheetName];
+      var sData = stats[formattedDate][normalizedKey];
       sData.total += 1;
       
       var normStatus = status.toLowerCase();
