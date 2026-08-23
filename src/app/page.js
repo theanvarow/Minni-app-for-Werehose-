@@ -1087,10 +1087,10 @@ export default function Home() {
               <span className="text-xl sm:text-2xl">📦</span>
               <div>
                 <h2 className="text-sm sm:text-base font-black text-emerald-400 leading-none">
-                  Kunlik Izlishka Statistikasi
+                  Ежедневная статистика излишков
                 </h2>
                 <p className="text-[10px] text-neutral-400 mt-1">
-                  Xodimlar bo&apos;yicha bajarilgan ishlar (&quot;Kim nechta qildi&quot;)
+                  Выполненная работа по сотрудникам (&quot;Кто сколько сделал&quot;)
                 </p>
               </div>
             </div>
@@ -1102,7 +1102,7 @@ export default function Home() {
               className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition active:scale-95"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6" />
               </svg>
             </button>
           </div>
@@ -1142,7 +1142,7 @@ export default function Home() {
           {!loadingStats && !statsError && statsData && Object.keys(statsData).length > 0 && (
             <div className="mb-3 bg-neutral-800/30 border border-neutral-800/80 p-2.5 rounded-xl flex items-center justify-between gap-3 shrink-0 text-[11px]">
               <div className="flex items-center gap-2">
-                <span className="text-neutral-400 font-semibold">Sana bo&apos;yicha filtr:</span>
+                <span className="text-neutral-400 font-semibold">Фильтр по дате:</span>
                 {selectedIzlishkaDateStr && (
                   <button
                     onClick={() => {
@@ -1151,7 +1151,7 @@ export default function Home() {
                     }}
                     className="bg-red-950/80 hover:bg-red-900 border border-red-500/30 px-1.5 py-0.5 rounded text-[9px] text-white font-bold transition active:scale-95"
                   >
-                    Barcha kunlar
+                    Все дни
                   </button>
                 )}
               </div>
@@ -1174,7 +1174,7 @@ export default function Home() {
             {loadingStats && (
               <div className="py-12 flex flex-col items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-emerald-500 mb-2"></div>
-                <p className="text-xs text-neutral-400 font-medium animate-pulse">Izlishka statistikasi yuklanmoqda...</p>
+                <p className="text-xs text-neutral-400 font-medium animate-pulse">Загрузка статистики излишков...</p>
               </div>
             )}
 
@@ -1185,7 +1185,7 @@ export default function Home() {
                   onClick={fetchStats}
                   className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-[10px] font-bold rounded-lg transition"
                 >
-                  Qayta urinish
+                  Повторить попытку
                 </button>
               </div>
             )}
@@ -1209,8 +1209,8 @@ export default function Home() {
                         <span className="text-3xl block mb-2">📦</span>
                         <p className="text-neutral-400 text-xs font-semibold">
                           {selectedIzlishkaDateStr
-                            ? "Tanlangan sana bo'yicha izlishka statistikasi topilmadi."
-                            : "Hali izlishka bo'limi bo'yicha ma'lumotlar mavjud emas."}
+                            ? "За выбранную дату нет данных по излишкам."
+                            : "Данные по сборке излишков пока отсутствуют."}
                         </p>
                         {selectedIzlishkaDateStr && (
                           <button
@@ -1220,7 +1220,7 @@ export default function Home() {
                             }}
                             className="mt-3 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition active:scale-95"
                           >
-                            Barcha kunlarni ko&apos;rsatish
+                            Показать все дни
                           </button>
                         )}
                       </div>
@@ -1260,16 +1260,16 @@ export default function Home() {
                                 📅 <span>{formattedDate}</span>
                               </h3>
                               <p className="text-[10px] text-neutral-400 mt-0.5">
-                                Jami yig&apos;ilgan izlishka: <strong className="text-emerald-400 font-extrabold">{totalItems} ta</strong>
+                                Всего собрано излишков: <strong className="text-emerald-400 font-extrabold">{totalItems} шт</strong>
                               </p>
                             </div>
                             <div className="flex items-center gap-1.5 text-[10px]">
                               <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold px-2 py-0.5 rounded-lg">
-                                Topildi: {confirmedItems} ta
+                                Найдено: {confirmedItems} шт
                               </span>
                               {missingItems > 0 && (
                                 <span className="bg-red-500/10 border border-red-500/30 text-red-400 font-extrabold px-2 py-0.5 rounded-lg">
-                                  Topilmadi: {missingItems} ta
+                                  Отсутствует: {missingItems} шт
                                 </span>
                               )}
                             </div>
@@ -1278,15 +1278,15 @@ export default function Home() {
                           {/* Quick Summary Widgets */}
                           <div className="grid grid-cols-3 gap-2 mb-3">
                             <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center">
-                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Jami izlishka</span>
+                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Всего излишков</span>
                               <span className="text-xs sm:text-sm font-black text-emerald-400">{totalItems} шт</span>
                             </div>
                             <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center">
-                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Faol xodimlar</span>
-                              <span className="text-xs sm:text-sm font-black text-blue-400">{activeWorkerCount} kishi</span>
+                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Сотрудники</span>
+                              <span className="text-xs sm:text-sm font-black text-blue-400">{activeWorkerCount} чел.</span>
                             </div>
                             <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center truncate">
-                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Lider</span>
+                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Лидер дня</span>
                               <span className="text-xs sm:text-sm font-black text-amber-400 truncate block">
                                 {topUser ? `${topUser[0].split(" ")[0]} (${topUser[1]})` : "-"}
                               </span>
@@ -1296,12 +1296,12 @@ export default function Home() {
                           {/* Employee Leaderboard ("Kim nechta qildi") */}
                           <div>
                             <h4 className="text-[10px] font-extrabold text-neutral-300 uppercase tracking-wider mb-2 flex items-center justify-between">
-                              <span>👥 Xodimlar reytingi (&quot;Kim nechta qildi&quot;)</span>
-                              <span className="text-neutral-500 text-[9px] font-normal">{userEntries.length} ta xodim</span>
+                              <span>👥 Рейтинг сотрудников (&quot;Кто сколько сделал&quot;)</span>
+                              <span className="text-neutral-500 text-[9px] font-normal">{userEntries.length} чел.</span>
                             </h4>
 
                             {userEntries.length === 0 ? (
-                              <p className="text-[10px] text-neutral-500 italic">Xodimlar ma&apos;lumoti yo&apos;q</p>
+                              <p className="text-[10px] text-neutral-500 italic">Нет данных о сотрудниках</p>
                             ) : (
                               <div className="flex flex-col gap-1.5">
                                 {userEntries.map(([uName, uCount], idx) => {
@@ -1310,16 +1310,16 @@ export default function Home() {
                                   let rankBadge = "👤";
                                   let rankClass = "bg-neutral-800 text-neutral-400 border-neutral-700";
                                   if (idx === 0) {
-                                    rankBadge = "🥇 1-o'rin";
+                                    rankBadge = "🥇 1 место";
                                     rankClass = "bg-amber-500/20 text-amber-300 border-amber-500/40 font-black";
                                   } else if (idx === 1) {
-                                    rankBadge = "🥈 2-o'rin";
+                                    rankBadge = "🥈 2 место";
                                     rankClass = "bg-slate-400/20 text-slate-300 border-slate-400/40 font-black";
                                   } else if (idx === 2) {
-                                    rankBadge = "🥉 3-o'rin";
+                                    rankBadge = "🥉 3 место";
                                     rankClass = "bg-amber-700/20 text-amber-500 border-amber-700/40 font-black";
                                   } else {
-                                    rankBadge = `${idx + 1}-o'rin`;
+                                    rankBadge = `${idx + 1} место`;
                                   }
 
                                   return (
@@ -1338,7 +1338,7 @@ export default function Home() {
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0 font-mono">
                                           <span className="font-black text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
-                                            {uCount} ta
+                                            {uCount} шт
                                           </span>
                                           <span className="text-[10px] text-neutral-400 font-bold w-10 text-right">
                                             ({pct}%)
@@ -1382,7 +1382,7 @@ export default function Home() {
               }}
               className="text-[10px] text-neutral-400 hover:text-white font-bold flex items-center gap-1 transition"
             >
-              🔄 Yangilash
+              🔄 Обновить
             </button>
             <button
               onClick={() => {
@@ -1391,7 +1391,7 @@ export default function Home() {
               }}
               className="px-4 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg text-[10px] font-bold transition active:scale-95"
             >
-              Yopish
+              Закрыть
             </button>
           </div>
         </div>
@@ -1605,7 +1605,7 @@ export default function Home() {
                 }}
                 className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-all active:scale-95"
               >
-                📦 Излишка статистикаsi
+                📦 Статистика излишков
               </button>
               <span className="text-neutral-600">|</span>
               <button
@@ -1688,7 +1688,7 @@ export default function Home() {
                     activeMode === "izlishka" ? "text-emerald-400 border-emerald-500/40" : "text-neutral-300 border-neutral-700 hover:text-white"
                   }`}
                 >
-                  {activeMode === "izlishka" ? "📦 Statistika" : "📊 Статистика"}
+                  {activeMode === "izlishka" ? "📦 Статистика" : "📊 Статистика"}
                 </button>
 
                 <button 
@@ -1790,7 +1790,7 @@ export default function Home() {
                 }}
                 className="text-[10px] bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold px-2 py-1 rounded-lg border border-emerald-500/30 transition active:scale-95 flex items-center gap-1"
               >
-                📦 Statistika
+                📦 Статистика
               </button>
             </div>
           ) : (
