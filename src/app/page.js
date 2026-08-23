@@ -764,16 +764,23 @@ export default function Home() {
                                               const isObj = typeof uVal === "object" && uVal !== null;
                                               const uSku = isObj ? (uVal.confirmedSku !== undefined ? uVal.confirmedSku : (uVal.sku || 0)) : (uVal || 0);
                                               const uQty = isObj ? (uVal.confirmedQty !== undefined ? uVal.confirmedQty : (uVal.qty || 0)) : uSku;
-                                              const uConf = isObj ? (uVal.confirmedQty || uVal.confirmed || 0) : uQty;
-                                              const uMiss = isObj ? (uVal.missingQty || uVal.missing || 0) : 0;
-                                              const uPlac = isObj ? (uVal.placementCorrect || 0) : 0;
+                                              
+                                              const userTarget = 300;
+                                              const userPct = Math.min(Math.round((uSku / userTarget) * 100), 100);
+                                              const isUserCompleted = uSku >= userTarget;
                                               
                                               return (
                                                 <div key={u} className="flex justify-between items-center text-neutral-200 py-0.5 text-[9px]">
-                                                  <span className="font-bold text-neutral-100 truncate max-w-[65%]" title={u}>{u}</span>
-                                                  <span className="font-mono text-amber-400 font-black text-[9px] bg-amber-500/10 px-1.5 py-0.5 rounded">
-                                                    {uSku > 0 && uQty !== uSku ? `${uSku} SKU (${uQty} шт)` : `${uQty} шт`}
-                                                  </span>
+                                                  <span className="font-bold text-neutral-100 truncate max-w-[50%]" title={u}>{u}</span>
+                                                  <div className="flex items-center gap-1">
+                                                    {isUserCompleted && (
+                                                      <span className="text-[8px] bg-emerald-500/20 text-emerald-400 font-extrabold px-1 rounded border border-emerald-500/30">План 300 ✅</span>
+                                                    )}
+                                                    <span className="font-mono text-amber-400 font-black text-[9px] bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                                      {uSku > 0 && uQty !== uSku ? `${uSku} SKU (${uQty} шт)` : `${uSku} SKU`}
+                                                    </span>
+                                                    <span className="text-[8px] text-neutral-400 font-bold font-mono">({userPct}%)</span>
+                                                  </div>
                                                 </div>
                                               );
                                             })}
@@ -1368,9 +1375,11 @@ export default function Home() {
                               <p className="text-[10px] text-neutral-500 italic">Нет данных о сотрудниках</p>
                             ) : (
                               <div className="flex flex-col gap-1.5">
-                                {userEntries.map((uItem, idx) => {
+                                {userEntries.map((uItem) => {
                                   const { uName, uSku, uQty } = uItem;
-                                  const pct = totalQty > 0 ? Math.round((uQty / totalQty) * 100) : 0;
+                                  const userTarget = 300;
+                                  const userPct = Math.min(Math.round((uSku / userTarget) * 100), 100);
+                                  const isUserCompleted = uSku >= userTarget;
 
                                   return (
                                     <div
@@ -1378,30 +1387,37 @@ export default function Home() {
                                       className="bg-neutral-900/80 border border-neutral-800 rounded-xl p-2.5 flex flex-col gap-1.5 text-[11px]"
                                     >
                                       <div className="flex justify-between items-center">
-                                        <span className="font-extrabold text-white truncate max-w-[65%]" title={uName}>
-                                          {uName}
-                                        </span>
+                                        <div className="flex items-center gap-2 min-w-0 pr-2">
+                                          <span className="font-extrabold text-white truncate" title={uName}>
+                                            {uName}
+                                          </span>
+                                          {isUserCompleted && (
+                                            <span className="text-[8px] bg-emerald-500/20 text-emerald-400 font-extrabold px-1.5 py-0.5 rounded border border-emerald-500/30 shrink-0">
+                                              План 300 SKU ✅
+                                            </span>
+                                          )}
+                                        </div>
                                         <div className="flex items-center gap-1.5 shrink-0 font-mono">
                                           <span className="font-black text-amber-400 text-[11px] bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
-                                            {uSku > 0 && uQty !== uSku ? `${uSku} SKU (${uQty} шт)` : `${uQty} шт`}
+                                            {uSku > 0 && uQty !== uSku ? `${uSku} SKU (${uQty} шт)` : `${uSku} SKU`}
                                           </span>
-                                          <span className="text-[10px] text-neutral-400 font-bold w-10 text-right">
-                                            ({pct}%)
+                                          <span className="text-[10px] text-neutral-400 font-bold w-12 text-right">
+                                            ({userPct}%)
                                           </span>
                                         </div>
                                       </div>
 
-                                      {/* Individual Progress bar */}
+                                      {/* Progress bar towards 300 SKU target */}
                                       <div className="w-full h-1.5 bg-neutral-950 rounded-full overflow-hidden">
                                         <div
                                           className={`h-full transition-all duration-500 rounded-full ${
-                                            idx === 0
-                                              ? 'bg-gradient-to-r from-amber-500 via-emerald-400 to-teal-300'
-                                              : idx === 1
-                                              ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                                              : 'bg-gradient-to-r from-teal-600 to-emerald-500'
+                                            isUserCompleted
+                                              ? 'bg-gradient-to-r from-emerald-500 to-teal-300'
+                                              : userPct > 50
+                                              ? 'bg-gradient-to-r from-amber-500 to-emerald-400'
+                                              : 'bg-gradient-to-r from-amber-600 to-amber-400'
                                           }`}
-                                          style={{ width: `${Math.max(pct, 2)}%` }}
+                                          style={{ width: `${Math.max(userPct, 2)}%` }}
                                         />
                                       </div>
                                     </div>
