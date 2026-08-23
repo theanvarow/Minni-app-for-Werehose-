@@ -1305,10 +1305,6 @@ export default function Home() {
 
                       const totalSkus = izData.total || 0;
                       const totalQty = izData.totalQty || totalSkus;
-                      const confirmedSkus = izData.confirmed || 0;
-                      const confirmedQty = izData.confirmedQty || confirmedSkus;
-                      const missingSkus = izData.missing || 0;
-                      const missingQty = izData.missingQty || missingSkus;
 
                       const usersMap = izData.users || {};
 
@@ -1316,11 +1312,7 @@ export default function Home() {
                         const isObj = typeof uVal === "object" && uVal !== null;
                         const uSku = isObj ? (uVal.sku || uVal.total || 0) : (uVal || 0);
                         const uQty = isObj ? (uVal.qty || uVal.total || 0) : uSku;
-                        const uConfirmedSku = isObj ? (uVal.confirmedSku || uVal.confirmed || 0) : uSku;
-                        const uConfirmedQty = isObj ? (uVal.confirmedQty || uVal.confirmed || 0) : uQty;
-                        const uMissingSku = isObj ? (uVal.missingSku || uVal.missing || 0) : 0;
-                        const uMissingQty = isObj ? (uVal.missingQty || uVal.missing || 0) : 0;
-                        return { uName, uSku, uQty, uConfirmedSku, uConfirmedQty, uMissingSku, uMissingQty };
+                        return { uName, uSku, uQty };
                       }).sort((a, b) => b.uQty - a.uQty);
 
                       const activeWorkerCount = userEntries.length;
@@ -1337,16 +1329,6 @@ export default function Home() {
                               <p className="text-[10px] text-neutral-400 mt-0.5">
                                 Итого собрано: <strong className="text-emerald-400 font-extrabold">{totalSkus} SKU ({totalQty} шт)</strong>
                               </p>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[10px]">
-                              <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold px-2 py-0.5 rounded-lg">
-                                Найдено: {confirmedSkus} SKU ({confirmedQty} шт)
-                              </span>
-                              {missingSkus > 0 && (
-                                <span className="bg-red-500/10 border border-red-500/30 text-red-400 font-extrabold px-2 py-0.5 rounded-lg">
-                                  Отсутствует: {missingSkus} SKU ({missingQty} шт)
-                                </span>
-                              )}
                             </div>
                           </div>
 
@@ -1384,7 +1366,7 @@ export default function Home() {
                             ) : (
                               <div className="flex flex-col gap-1.5">
                                 {userEntries.map((uItem, idx) => {
-                                  const { uName, uSku, uQty, uConfirmedSku, uConfirmedQty, uMissingSku, uMissingQty } = uItem;
+                                  const { uName, uSku, uQty } = uItem;
                                   const pct = totalQty > 0 ? Math.round((uQty / totalQty) * 100) : 0;
                                   
                                   let rankBadge = "👤";
@@ -1405,7 +1387,7 @@ export default function Home() {
                                   return (
                                     <div
                                       key={uName}
-                                      className="bg-neutral-900/80 border border-neutral-800 rounded-xl p-2 flex flex-col gap-1.5 text-[11px]"
+                                      className="bg-neutral-900/80 border border-neutral-800 rounded-xl p-2.5 flex flex-col gap-1.5 text-[11px]"
                                     >
                                       <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-2 min-w-0 pr-2">
@@ -1424,17 +1406,6 @@ export default function Home() {
                                             ({pct}%)
                                           </span>
                                         </div>
-                                      </div>
-
-                                      {/* Detailed status breakdown per employee */}
-                                      <div className="flex items-center gap-2 text-[9px] font-semibold text-neutral-300 bg-neutral-950/40 px-2 py-1 rounded-lg border border-neutral-850">
-                                        <span className="text-emerald-400 font-bold flex items-center gap-1">
-                                          ✓ Найдено: <strong className="font-extrabold font-mono text-emerald-300">{uConfirmedSku} SKU ({uConfirmedQty} шт)</strong>
-                                        </span>
-                                        <span className="text-neutral-600">|</span>
-                                        <span className="text-red-400 font-bold flex items-center gap-1">
-                                          ✗ Отсутствует: <strong className="font-extrabold font-mono text-red-300">{uMissingSku} SKU ({uMissingQty} шт)</strong>
-                                        </span>
                                       </div>
 
                                       {/* Individual Progress bar */}
