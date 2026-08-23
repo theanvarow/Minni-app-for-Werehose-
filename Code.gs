@@ -274,7 +274,7 @@ function doPost(e) {
 
 function getStats(ss, force) {
   var cache = CacheService.getScriptCache();
-  var cacheKey = "inventory_stats_cache_v9";
+  var cacheKey = "inventory_stats_cache_v4";
 
   if (!force) {
     try {
@@ -317,8 +317,6 @@ function getStats(ss, force) {
     var dateIdx = -1;
     var qtyIdx = -1;
 
-    var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
-
     for (var h = 0; h < headers.length; h++) {
       var hText = headers[h];
       if (barcodeIdx === -1 && (hText.indexOf("штрих") !== -1 || hText.indexOf("barcode") !== -1 || hText.indexOf("sku") !== -1 || hText.indexOf("артикул") !== -1)) barcodeIdx = h;
@@ -326,16 +324,18 @@ function getStats(ss, force) {
       if (userIdx === -1 && (hText.indexOf("фио") !== -1 || hText.indexOf("fio") !== -1 || hText.indexOf("пользователь") !== -1 || hText.indexOf("имя") !== -1 || hText.indexOf("сотрудник") !== -1)) userIdx = h;
       if (dateIdx === -1 && (hText.indexOf("дата") !== -1 || hText.indexOf("время") !== -1 || hText.indexOf("date") !== -1 || hText.indexOf("timestamp") !== -1)) dateIdx = h;
       if (placementIdx === -1 && (hText.indexOf("размещение") !== -1 || hText.indexOf("placement") !== -1)) placementIdx = h;
-      if (isIzlishkaSheet && qtyIdx === -1 && (hText.indexOf("количест") !== -1 || hText.indexOf("кол-во") !== -1 || hText.indexOf("qty") !== -1 || hText.indexOf("kol-vo") !== -1 || hText === "кол")) qtyIdx = h;
+      if (qtyIdx === -1 && (hText.indexOf("количест") !== -1 || hText.indexOf("кол-во") !== -1 || hText.indexOf("qty") !== -1 || hText.indexOf("kol-vo") !== -1 || hText.indexOf("кол") !== -1)) qtyIdx = h;
     }
+
+    var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
 
     // Fallbacks ONLY if header search did not find matching column:
     if (barcodeIdx === -1) barcodeIdx = 0; // Column A
-    if (qtyIdx === -1) qtyIdx = isIzlishkaSheet ? 2 : -1; // Izlishka = Col C, Shift = 1 per row (no qty col)
+    if (qtyIdx === -1) qtyIdx = 2;         // Column C
     if (statusIdx === -1) statusIdx = isIzlishkaSheet ? 3 : 5; // Izlishka = D, Shift = F
     if (userIdx === -1) userIdx = isIzlishkaSheet ? 4 : 7;     // Izlishka = E, Shift = H
     if (dateIdx === -1) dateIdx = isIzlishkaSheet ? 6 : 9;     // Izlishka = G, Shift = J
-    if (placementIdx === -1) placementIdx = isIzlishkaSheet ? -1 : 6;
+    if (placementIdx === -1) placementIdx = 6;
     
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
@@ -356,16 +356,14 @@ function getStats(ss, force) {
       if (!rawDate && row[10]) rawDate = row[10];
       if (!rawDate && row[5]) rawDate = row[5];
 
-      var itemQty = 1;
-      if (isIzlishkaSheet && qtyIdx !== -1 && row[qtyIdx] !== undefined) {
-        var parsedQty = parseInt(row[qtyIdx], 10);
-        if (!isNaN(parsedQty) && parsedQty > 0) itemQty = parsedQty;
-      }
+      var itemQty = parseInt(row[qtyIdx], 10);
+      if (isNaN(itemQty) || itemQty <= 0) itemQty = 1;
       
-      // If status is empty BUT userName or valid barcode exists, treat status as "Подтвержден" / "Собрано"
+      // For shift sheets: skip un-audited rows (empty status)
+      // For Izlishka sheet: if status is empty BUT userName or valid barcode exists, treat status as "Собрано"
       if (!status || status === "") {
-        if (userName !== "" || barcode.indexOf("row_") === -1) {
-          status = "Подтвержден";
+        if (isIzlishkaSheet && (userName !== "" || barcode.indexOf("row_") === -1)) {
+          status = "Собрано";
         } else {
           continue;
         }
