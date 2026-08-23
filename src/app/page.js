@@ -698,7 +698,7 @@ export default function Home() {
                               
                               const pctConfirmed = count > 0 ? Math.round((confirmed / count) * 100) : 0;
                               const pctMissing = count > 0 ? Math.round((missing / count) * 100) : 0;
-                              const pctPlacement = confirmed > 0 ? Math.min(Math.round((placementCorrect / confirmed) * 100), 100) : 0;
+                              const pctPlacement = confirmed > 0 ? Math.round((placementCorrect / confirmed) * 100) : 0;
 
                               const target = 600;
                               const pct = Math.min(Math.round((count / target) * 100), 100);

@@ -274,7 +274,7 @@ function doPost(e) {
 
 function getStats(ss, force) {
   var cache = CacheService.getScriptCache();
-  var cacheKey = "inventory_stats_cache_v5";
+  var cacheKey = "inventory_stats_cache_v4";
 
   if (!force) {
     try {
@@ -324,18 +324,18 @@ function getStats(ss, force) {
       if (userIdx === -1 && (hText.indexOf("фио") !== -1 || hText.indexOf("fio") !== -1 || hText.indexOf("пользователь") !== -1 || hText.indexOf("имя") !== -1 || hText.indexOf("сотрудник") !== -1)) userIdx = h;
       if (dateIdx === -1 && (hText.indexOf("дата") !== -1 || hText.indexOf("время") !== -1 || hText.indexOf("date") !== -1 || hText.indexOf("timestamp") !== -1)) dateIdx = h;
       if (placementIdx === -1 && (hText.indexOf("размещение") !== -1 || hText.indexOf("placement") !== -1)) placementIdx = h;
-      if (qtyIdx === -1 && (hText.indexOf("количест") !== -1 || hText.indexOf("кол-во") !== -1 || hText.indexOf("qty") !== -1 || hText.indexOf("kol-vo") !== -1 || hText === "кол")) qtyIdx = h;
+      if (qtyIdx === -1 && (hText.indexOf("количест") !== -1 || hText.indexOf("кол-во") !== -1 || hText.indexOf("qty") !== -1 || hText.indexOf("kol-vo") !== -1 || hText.indexOf("кол") !== -1)) qtyIdx = h;
     }
 
     var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
 
     // Fallbacks ONLY if header search did not find matching column:
     if (barcodeIdx === -1) barcodeIdx = 0; // Column A
-    if (qtyIdx === -1) qtyIdx = isIzlishkaSheet ? 2 : -1; // Izlishka = Col C, Shift = 1 per row
+    if (qtyIdx === -1) qtyIdx = 2;         // Column C
     if (statusIdx === -1) statusIdx = isIzlishkaSheet ? 3 : 5; // Izlishka = D, Shift = F
     if (userIdx === -1) userIdx = isIzlishkaSheet ? 4 : 7;     // Izlishka = E, Shift = H
     if (dateIdx === -1) dateIdx = isIzlishkaSheet ? 6 : 9;     // Izlishka = G, Shift = J
-    if (placementIdx === -1) placementIdx = isIzlishkaSheet ? -1 : 6;
+    if (placementIdx === -1) placementIdx = 6;
     
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
@@ -356,11 +356,8 @@ function getStats(ss, force) {
       if (!rawDate && row[10]) rawDate = row[10];
       if (!rawDate && row[5]) rawDate = row[5];
 
-      var itemQty = 1;
-      if (qtyIdx !== -1 && row[qtyIdx] !== undefined) {
-        var parsedQty = parseInt(row[qtyIdx], 10);
-        if (!isNaN(parsedQty) && parsedQty > 0) itemQty = parsedQty;
-      }
+      var itemQty = parseInt(row[qtyIdx], 10);
+      if (isNaN(itemQty) || itemQty <= 0) itemQty = 1;
       
       // For shift sheets: skip un-audited rows (empty status)
       // For Izlishka sheet: if status is empty BUT userName or valid barcode exists, treat status as "Собрано"
@@ -492,8 +489,8 @@ function getStats(ss, force) {
       }
       
       var normPlacement = placementCorrect.toLowerCase();
-      var isPlacementOk = normPlacement === "да" || normPlacement === "yes" || normPlacement.indexOf("верн") !== -1 || normPlacement === "ok" || normPlacement === "1";
-      var isPlacementErr = normPlacement === "нет" || normPlacement === "no" || normPlacement.indexOf("неверн") !== -1 || normPlacement === "0";
+      var isPlacementOk = normPlacement.indexOf("да") !== -1 || normPlacement.indexOf("yes") !== -1 || normPlacement.indexOf("верн") !== -1 || normPlacement === "ok" || normPlacement === "1" || (normStatus.indexOf("подтвержд") !== -1 && (normPlacement === "" || normPlacement === "да"));
+      var isPlacementErr = normPlacement.indexOf("нет") !== -1 || normPlacement.indexOf("no") !== -1 || normPlacement.indexOf("неверн") !== -1 || normPlacement === "0";
 
       if (isPlacementOk) {
         sData.placementCorrect += 1;
@@ -534,6 +531,11 @@ function getStats(ss, force) {
         }
 
         var uObj = sData.users[userName];
+        uObj.qty += itemQty;
+        if (!uObj.barcodesMap[barcode]) {
+          uObj.barcodesMap[barcode] = true;
+          uObj.sku += 1;
+        }
         
         if (isPlacementOk) {
           uObj.placementCorrect = (uObj.placementCorrect || 0) + 1;
@@ -541,12 +543,7 @@ function getStats(ss, force) {
           uObj.placementIncorrect = (uObj.placementIncorrect || 0) + 1;
         }
         
-        if (isConfirmed || (!isConfirmed && !isMissing)) {
-          uObj.qty += itemQty;
-          if (!uObj.barcodesMap[barcode]) {
-            uObj.barcodesMap[barcode] = true;
-            uObj.sku += 1;
-          }
+        if (isConfirmed) {
           uObj.confirmedQty += itemQty;
           if (!uObj.confirmedBarcodesMap[barcode]) {
             uObj.confirmedBarcodesMap[barcode] = true;
@@ -557,6 +554,12 @@ function getStats(ss, force) {
           if (!uObj.missingBarcodesMap[barcode]) {
             uObj.missingBarcodesMap[barcode] = true;
             uObj.missingSku += 1;
+          }
+        } else {
+          uObj.confirmedQty += itemQty;
+          if (!uObj.confirmedBarcodesMap[barcode]) {
+            uObj.confirmedBarcodesMap[barcode] = true;
+            uObj.confirmedSku += 1;
           }
         }
       }
