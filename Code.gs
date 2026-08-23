@@ -329,33 +329,53 @@ function getStats(ss, force) {
 
     var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
 
-    // Sheet-aware default fallbacks (0-indexed for array access):
-    if (barcodeIdx === -1) barcodeIdx = 0; // Column A (0)
-    if (qtyIdx === -1) qtyIdx = 2; // Column C (2)
-    if (statusIdx === -1) statusIdx = isIzlishkaSheet ? 3 : 5; // Izlishka = D (3), Shift = F (5)
-    if (userIdx === -1) userIdx = isIzlishkaSheet ? 4 : 7; // Izlishka = E (4), Shift = H (7)
-    if (dateIdx === -1) dateIdx = isIzlishkaSheet ? 6 : 9; // Izlishka = G (6), Shift = J (9)
-    if (placementIdx === -1) placementIdx = 6;
+    // Sheet-aware default column positions (0-indexed for array access):
+    if (isIzlishkaSheet) {
+      if (barcodeIdx === -1) barcodeIdx = 0; // Col A
+      if (qtyIdx === -1) qtyIdx = 2;         // Col C
+      statusIdx = 3;                          // Col D (Status)
+      userIdx = 4;                            // Col E (ФИО)
+      dateIdx = 6;                            // Col G (Timestamp)
+    } else {
+      if (barcodeIdx === -1) barcodeIdx = 0; // Col A
+      if (qtyIdx === -1) qtyIdx = 2;         // Col C
+      if (statusIdx === -1) statusIdx = 5;   // Col F
+      if (userIdx === -1) userIdx = 7;       // Col H
+      if (dateIdx === -1) dateIdx = 9;       // Col J
+      if (placementIdx === -1) placementIdx = 6;// Col G
+    }
     
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
-      var barcode = String(row[barcodeIdx] || ("row_" + i)).trim();
+      var barcode = String(row[barcodeIdx] || "").trim();
       var status = String(row[statusIdx] || "").trim();
       var placementCorrect = String(row[placementIdx] || "").trim();
       var userName = String(row[userIdx] || "").trim();
       
-      // Multi-column date check: try primary dateIdx, then check columns 9, 10, 6, 7 if empty
+      // If row has no barcode and no user, skip empty rows completely
+      if (!barcode && !userName) continue;
+      if (!barcode) barcode = "row_" + i;
+      
+      // Multi-column date check: try primary dateIdx, then check columns 6, 7, 9, 10, 5 if empty
       var rawDate = row[dateIdx];
-      if (!rawDate && row[9]) rawDate = row[9];
-      if (!rawDate && row[10]) rawDate = row[10];
       if (!rawDate && row[6]) rawDate = row[6];
       if (!rawDate && row[7]) rawDate = row[7];
+      if (!rawDate && row[5]) rawDate = row[5];
+      if (!rawDate && row[9]) rawDate = row[9];
+      if (!rawDate && row[10]) rawDate = row[10];
 
       var itemQty = parseInt(row[qtyIdx], 10);
       if (isNaN(itemQty) || itemQty <= 0) itemQty = 1;
       
-      // If status is empty, it means this item has not been audited yet
-      if (!status || status === "") continue;
+      // For shift sheets: skip un-audited rows (empty status)
+      // For Izlishka sheet: if status is empty BUT userName or valid barcode exists, treat status as "Собрано"
+      if (!status || status === "") {
+        if (isIzlishkaSheet && (userName !== "" || barcode.indexOf("row_") === -1)) {
+          status = "Собрано";
+        } else {
+          continue;
+        }
+      }
       
       // Parse Date from timestamp flexibly
       var formattedDate = "";
