@@ -1247,7 +1247,14 @@ export default function Home() {
                       const missingItems = izData.missing || 0;
                       const usersMap = izData.users || {};
 
-                      const userEntries = Object.entries(usersMap).sort((a, b) => b[1] - a[1]);
+                      const userEntries = Object.entries(usersMap).map(([uName, uVal]) => {
+                        const isObj = typeof uVal === "object" && uVal !== null;
+                        const uTotal = isObj ? (uVal.total || 0) : (uVal || 0);
+                        const uConfirmed = isObj ? (uVal.confirmed || 0) : uTotal;
+                        const uMissing = isObj ? (uVal.missing || 0) : 0;
+                        return { uName, uTotal, uConfirmed, uMissing };
+                      }).sort((a, b) => b.uTotal - a.uTotal);
+
                       const activeWorkerCount = userEntries.length;
                       const topUser = userEntries.length > 0 ? userEntries[0] : null;
 
@@ -1288,7 +1295,7 @@ export default function Home() {
                             <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center truncate">
                               <span className="text-[9px] text-neutral-400 font-bold block uppercase">Лидер дня</span>
                               <span className="text-xs sm:text-sm font-black text-amber-400 truncate block">
-                                {topUser ? `${topUser[0].split(" ")[0]} (${topUser[1]})` : "-"}
+                                {topUser ? `${topUser.uName.split(" ")[0]} (${topUser.uTotal})` : "-"}
                               </span>
                             </div>
                           </div>
@@ -1304,8 +1311,9 @@ export default function Home() {
                               <p className="text-[10px] text-neutral-500 italic">Нет данных о сотрудниках</p>
                             ) : (
                               <div className="flex flex-col gap-1.5">
-                                {userEntries.map(([uName, uCount], idx) => {
-                                  const pct = totalItems > 0 ? Math.round((uCount / totalItems) * 100) : 0;
+                                {userEntries.map((uItem, idx) => {
+                                  const { uName, uTotal, uConfirmed, uMissing } = uItem;
+                                  const pct = totalItems > 0 ? Math.round((uTotal / totalItems) * 100) : 0;
                                   
                                   let rankBadge = "👤";
                                   let rankClass = "bg-neutral-800 text-neutral-400 border-neutral-700";
@@ -1325,7 +1333,7 @@ export default function Home() {
                                   return (
                                     <div
                                       key={uName}
-                                      className="bg-neutral-900/80 border border-neutral-800 rounded-xl p-2 flex flex-col gap-1 text-[11px]"
+                                      className="bg-neutral-900/80 border border-neutral-800 rounded-xl p-2 flex flex-col gap-1.5 text-[11px]"
                                     >
                                       <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-2 min-w-0 pr-2">
@@ -1336,14 +1344,25 @@ export default function Home() {
                                             {uName}
                                           </span>
                                         </div>
-                                        <div className="flex items-center gap-2 shrink-0 font-mono">
-                                          <span className="font-black text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
-                                            {uCount} шт
+                                        <div className="flex items-center gap-1.5 shrink-0 font-mono">
+                                          <span className="font-black text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
+                                            {uTotal} шт
                                           </span>
                                           <span className="text-[10px] text-neutral-400 font-bold w-10 text-right">
                                             ({pct}%)
                                           </span>
                                         </div>
+                                      </div>
+
+                                      {/* Detailed status breakdown per employee */}
+                                      <div className="flex items-center gap-2 text-[9px] font-semibold text-neutral-300 bg-neutral-950/40 px-2 py-1 rounded-lg border border-neutral-850">
+                                        <span className="text-emerald-400 font-bold flex items-center gap-1">
+                                          ✓ Найдено: <strong className="font-extrabold font-mono text-emerald-300">{uConfirmed} шт</strong>
+                                        </span>
+                                        <span className="text-neutral-600">|</span>
+                                        <span className="text-red-400 font-bold flex items-center gap-1">
+                                          ✗ Отсутствует: <strong className="font-extrabold font-mono text-red-300">{uMissing} шт</strong>
+                                        </span>
                                       </div>
 
                                       {/* Individual Progress bar */}

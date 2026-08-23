@@ -414,9 +414,18 @@ function getStats(ss) {
       
       if (userName) {
         if (!sData.users[userName]) {
-          sData.users[userName] = 0;
+          sData.users[userName] = { total: 0, confirmed: 0, missing: 0 };
+        } else if (typeof sData.users[userName] === "number") {
+          sData.users[userName] = { total: sData.users[userName], confirmed: sData.users[userName], missing: 0 };
         }
-        sData.users[userName] += 1;
+        sData.users[userName].total += 1;
+        if (isConfirmed) {
+          sData.users[userName].confirmed += 1;
+        } else if (isMissing) {
+          sData.users[userName].missing += 1;
+        } else {
+          sData.users[userName].confirmed += 1;
+        }
       }
     }
   }
