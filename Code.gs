@@ -274,7 +274,7 @@ function doPost(e) {
 
 function getStats(ss, force) {
   var cache = CacheService.getScriptCache();
-  var cacheKey = "inventory_stats_cache_v3";
+  var cacheKey = "inventory_stats_cache_v4";
 
   if (!force) {
     try {
@@ -299,7 +299,7 @@ function getStats(ss, force) {
       normalizedKey = "излишка";
     }
     
-    // Ignore non-shift sheets except we process shift sheets
+    // Ignore non-shift sheets except we process shift sheets and izlishka
     if (sLower.indexOf("готова") !== -1 || sLower.indexOf("gotova") !== -1 || sLower.indexOf("отчет") !== -1 || sLower.indexOf("report") !== -1) {
       continue;
     }
@@ -321,7 +321,7 @@ function getStats(ss, force) {
       var hText = headers[h];
       if (barcodeIdx === -1 && (hText.indexOf("штрих") !== -1 || hText.indexOf("barcode") !== -1 || hText.indexOf("sku") !== -1 || hText.indexOf("артикул") !== -1)) barcodeIdx = h;
       if (statusIdx === -1 && (hText.indexOf("статус") !== -1 || hText.indexOf("status") !== -1)) statusIdx = h;
-      if (userIdx === -1 && (hText.indexOf("фио") !== -1 || hText.indexOf("fio") !== -1 || hText.indexOf("пользователь") !== -1)) userIdx = h;
+      if (userIdx === -1 && (hText.indexOf("фио") !== -1 || hText.indexOf("fio") !== -1 || hText.indexOf("пользователь") !== -1 || hText.indexOf("имя") !== -1 || hText.indexOf("сотрудник") !== -1)) userIdx = h;
       if (dateIdx === -1 && (hText.indexOf("дата") !== -1 || hText.indexOf("время") !== -1 || hText.indexOf("date") !== -1 || hText.indexOf("timestamp") !== -1)) dateIdx = h;
       if (placementIdx === -1 && (hText.indexOf("размещение") !== -1 || hText.indexOf("placement") !== -1)) placementIdx = h;
       if (qtyIdx === -1 && (hText.indexOf("количест") !== -1 || hText.indexOf("кол-во") !== -1 || hText.indexOf("qty") !== -1 || hText.indexOf("kol-vo") !== -1 || hText.indexOf("кол") !== -1)) qtyIdx = h;
@@ -329,27 +329,19 @@ function getStats(ss, force) {
 
     var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
 
-    // Sheet-aware default column positions (0-indexed for array access):
-    if (isIzlishkaSheet) {
-      if (barcodeIdx === -1) barcodeIdx = 0; // Col A
-      if (qtyIdx === -1) qtyIdx = 2;         // Col C
-      statusIdx = 3;                          // Col D (Status)
-      userIdx = 4;                            // Col E (ФИО)
-      dateIdx = 6;                            // Col G (Timestamp)
-    } else {
-      if (barcodeIdx === -1) barcodeIdx = 0; // Col A
-      if (qtyIdx === -1) qtyIdx = 2;         // Col C
-      if (statusIdx === -1) statusIdx = 5;   // Col F
-      if (userIdx === -1) userIdx = 7;       // Col H
-      if (dateIdx === -1) dateIdx = 9;       // Col J
-      if (placementIdx === -1) placementIdx = 6;// Col G
-    }
+    // Fallbacks ONLY if header search did not find matching column:
+    if (barcodeIdx === -1) barcodeIdx = 0; // Column A
+    if (qtyIdx === -1) qtyIdx = 2;         // Column C
+    if (statusIdx === -1) statusIdx = isIzlishkaSheet ? 3 : 5; // Izlishka = D, Shift = F
+    if (userIdx === -1) userIdx = isIzlishkaSheet ? 4 : 7;     // Izlishka = E, Shift = H
+    if (dateIdx === -1) dateIdx = isIzlishkaSheet ? 6 : 9;     // Izlishka = G, Shift = J
+    if (placementIdx === -1) placementIdx = 6;
     
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
       var barcode = String(row[barcodeIdx] || "").trim();
       var status = String(row[statusIdx] || "").trim();
-      var placementCorrect = String(row[placementIdx] || "").trim();
+      var placementCorrect = (placementIdx !== -1 && row[placementIdx]) ? String(row[placementIdx]).trim() : "";
       var userName = String(row[userIdx] || "").trim();
       
       // If row has no barcode and no user, skip empty rows completely
@@ -360,9 +352,9 @@ function getStats(ss, force) {
       var rawDate = row[dateIdx];
       if (!rawDate && row[6]) rawDate = row[6];
       if (!rawDate && row[7]) rawDate = row[7];
-      if (!rawDate && row[5]) rawDate = row[5];
       if (!rawDate && row[9]) rawDate = row[9];
       if (!rawDate && row[10]) rawDate = row[10];
+      if (!rawDate && row[5]) rawDate = row[5];
 
       var itemQty = parseInt(row[qtyIdx], 10);
       if (isNaN(itemQty) || itemQty <= 0) itemQty = 1;
