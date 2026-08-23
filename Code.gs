@@ -305,6 +305,7 @@ function getStats(ss) {
     var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
     
     // Find column indices dynamically with substring matching
+    var barcodeIdx = -1;
     var statusIdx = -1;
     var placementIdx = -1;
     var userIdx = -1;
@@ -313,6 +314,7 @@ function getStats(ss) {
 
     for (var h = 0; h < headers.length; h++) {
       var hText = headers[h];
+      if (barcodeIdx === -1 && (hText.indexOf("штрих") !== -1 || hText.indexOf("barcode") !== -1 || hText.indexOf("sku") !== -1 || hText.indexOf("артикул") !== -1)) barcodeIdx = h;
       if (statusIdx === -1 && (hText.indexOf("статус") !== -1 || hText.indexOf("status") !== -1)) statusIdx = h;
       if (userIdx === -1 && (hText.indexOf("фио") !== -1 || hText.indexOf("fio") !== -1 || hText.indexOf("пользователь") !== -1)) userIdx = h;
       if (dateIdx === -1 && (hText.indexOf("дата") !== -1 || hText.indexOf("время") !== -1 || hText.indexOf("date") !== -1 || hText.indexOf("timestamp") !== -1)) dateIdx = h;
@@ -320,7 +322,8 @@ function getStats(ss) {
       if (qtyIdx === -1 && (hText.indexOf("количест") !== -1 || hText.indexOf("кол-во") !== -1 || hText.indexOf("qty") !== -1 || hText.indexOf("kol-vo") !== -1 || hText.indexOf("кол") !== -1)) qtyIdx = h;
     }
 
-    // Fallbacks (Matching Sheet layout: C=2: Количество, D=3: Статус, E=4: ФИО, F=5: Смена, G=6: Дата)
+    // Fallbacks (Matching Sheet layout: A=0: Barcode, C=2: Количество, D=3: Статус, E=4: ФИО, F=5: Смена, G=6: Дата)
+    if (barcodeIdx === -1) barcodeIdx = 0; // Column A (Barcode)
     if (qtyIdx === -1) qtyIdx = 2; // Column C (Quantity)
     if (statusIdx === -1) statusIdx = 3; // Column D (Status)
     if (userIdx === -1) userIdx = 4; // Column E (FIO)
@@ -329,6 +332,7 @@ function getStats(ss) {
     
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
+      var barcode = String(row[barcodeIdx] || ("row_" + i)).trim();
       var status = String(row[statusIdx] || "").trim();
       var placementCorrect = String(row[placementIdx] || "").trim();
       var userName = String(row[userIdx] || "").trim();
@@ -410,35 +414,52 @@ function getStats(ss) {
       
       if (!stats[formattedDate][normalizedKey]) {
         stats[formattedDate][normalizedKey] = {
-          total: 0,
-          totalQty: 0,
-          confirmed: 0,
-          confirmedQty: 0,
-          missing: 0,
-          missingQty: 0,
+          total: 0,           // Unique barcodes / SKU count
+          totalQty: 0,        // Sum of item quantity / pieces
+          totalRows: 0,       // Total rows count
+          confirmed: 0,       // Confirmed unique SKUs
+          confirmedQty: 0,    // Confirmed pieces
+          missing: 0,         // Missing unique SKUs
+          missingQty: 0,      // Missing pieces
           placementCorrect: 0,
           placementIncorrect: 0,
+          barcodesMap: {},
+          confirmedBarcodesMap: {},
+          missingBarcodesMap: {},
           users: {}
         };
       }
       
       var sData = stats[formattedDate][normalizedKey];
-      sData.total += 1;
+      sData.totalRows += 1;
       sData.totalQty = (sData.totalQty || 0) + itemQty;
+      if (!sData.barcodesMap[barcode]) {
+        sData.barcodesMap[barcode] = true;
+        sData.total += 1;
+      }
       
       var normStatus = status.toLowerCase();
       var isConfirmed = normStatus.indexOf("подтвержд") !== -1 || normStatus.indexOf("собр") !== -1 || normStatus === "да" || normStatus.indexOf("готово") !== -1 || normStatus.indexOf("выполн") !== -1 || normStatus.indexOf("найд") !== -1 || normStatus === "ok";
       var isMissing = normStatus.indexOf("отсут") !== -1 || normStatus.indexOf("нет") !== -1 || normStatus.indexOf("не ") !== -1 || normStatus.indexOf("ненайд") !== -1;
 
       if (isConfirmed) {
-        sData.confirmed += 1;
         sData.confirmedQty = (sData.confirmedQty || 0) + itemQty;
+        if (!sData.confirmedBarcodesMap[barcode]) {
+          sData.confirmedBarcodesMap[barcode] = true;
+          sData.confirmed += 1;
+        }
       } else if (isMissing) {
-        sData.missing += 1;
         sData.missingQty = (sData.missingQty || 0) + itemQty;
+        if (!sData.missingBarcodesMap[barcode]) {
+          sData.missingBarcodesMap[barcode] = true;
+          sData.missing += 1;
+        }
       } else {
-        sData.confirmed += 1;
         sData.confirmedQty = (sData.confirmedQty || 0) + itemQty;
+        if (!sData.confirmedBarcodesMap[barcode]) {
+          sData.confirmedBarcodesMap[barcode] = true;
+          sData.confirmed += 1;
+        }
       }
       
       var normPlacement = placementCorrect.toLowerCase();
@@ -450,35 +471,57 @@ function getStats(ss) {
       
       if (userName) {
         if (!sData.users[userName]) {
-          sData.users[userName] = { sku: 0, qty: 0, confirmedSku: 0, confirmedQty: 0, missingSku: 0, missingQty: 0 };
+          sData.users[userName] = {
+            sku: 0,
+            qty: 0,
+            confirmedSku: 0,
+            confirmedQty: 0,
+            missingSku: 0,
+            missingQty: 0,
+            barcodesMap: {},
+            confirmedBarcodesMap: {},
+            missingBarcodesMap: {}
+          };
         } else if (typeof sData.users[userName] === "number") {
           var oldVal = sData.users[userName];
-          sData.users[userName] = { sku: oldVal, qty: oldVal, confirmedSku: oldVal, confirmedQty: oldVal, missingSku: 0, missingQty: 0 };
-        } else if (sData.users[userName].sku === undefined) {
-          var oldObj = sData.users[userName];
           sData.users[userName] = {
-            sku: oldObj.total || 0,
-            qty: oldObj.total || 0,
-            confirmedSku: oldObj.confirmed || 0,
-            confirmedQty: oldObj.confirmed || 0,
-            missingSku: oldObj.missing || 0,
-            missingQty: oldObj.missing || 0
+            sku: oldVal,
+            qty: oldVal,
+            confirmedSku: oldVal,
+            confirmedQty: oldVal,
+            missingSku: 0,
+            missingQty: 0,
+            barcodesMap: {},
+            confirmedBarcodesMap: {},
+            missingBarcodesMap: {}
           };
         }
 
         var uObj = sData.users[userName];
-        uObj.sku += 1;
         uObj.qty += itemQty;
+        if (!uObj.barcodesMap[barcode]) {
+          uObj.barcodesMap[barcode] = true;
+          uObj.sku += 1;
+        }
         
         if (isConfirmed) {
-          uObj.confirmedSku += 1;
           uObj.confirmedQty += itemQty;
+          if (!uObj.confirmedBarcodesMap[barcode]) {
+            uObj.confirmedBarcodesMap[barcode] = true;
+            uObj.confirmedSku += 1;
+          }
         } else if (isMissing) {
-          uObj.missingSku += 1;
           uObj.missingQty += itemQty;
+          if (!uObj.missingBarcodesMap[barcode]) {
+            uObj.missingBarcodesMap[barcode] = true;
+            uObj.missingSku += 1;
+          }
         } else {
-          uObj.confirmedSku += 1;
           uObj.confirmedQty += itemQty;
+          if (!uObj.confirmedBarcodesMap[barcode]) {
+            uObj.confirmedBarcodesMap[barcode] = true;
+            uObj.confirmedSku += 1;
+          }
         }
       }
     }
