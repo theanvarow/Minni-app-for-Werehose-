@@ -1242,18 +1242,25 @@ export default function Home() {
                         year: 'numeric'
                       });
 
-                      const totalItems = izData.total || 0;
-                      const confirmedItems = izData.confirmed || 0;
-                      const missingItems = izData.missing || 0;
+                      const totalSkus = izData.total || 0;
+                      const totalQty = izData.totalQty || totalSkus;
+                      const confirmedSkus = izData.confirmed || 0;
+                      const confirmedQty = izData.confirmedQty || confirmedSkus;
+                      const missingSkus = izData.missing || 0;
+                      const missingQty = izData.missingQty || missingSkus;
+
                       const usersMap = izData.users || {};
 
                       const userEntries = Object.entries(usersMap).map(([uName, uVal]) => {
                         const isObj = typeof uVal === "object" && uVal !== null;
-                        const uTotal = isObj ? (uVal.total || 0) : (uVal || 0);
-                        const uConfirmed = isObj ? (uVal.confirmed || 0) : uTotal;
-                        const uMissing = isObj ? (uVal.missing || 0) : 0;
-                        return { uName, uTotal, uConfirmed, uMissing };
-                      }).sort((a, b) => b.uTotal - a.uTotal);
+                        const uSku = isObj ? (uVal.sku || uVal.total || 0) : (uVal || 0);
+                        const uQty = isObj ? (uVal.qty || uVal.total || 0) : uSku;
+                        const uConfirmedSku = isObj ? (uVal.confirmedSku || uVal.confirmed || 0) : uSku;
+                        const uConfirmedQty = isObj ? (uVal.confirmedQty || uVal.confirmed || 0) : uQty;
+                        const uMissingSku = isObj ? (uVal.missingSku || uVal.missing || 0) : 0;
+                        const uMissingQty = isObj ? (uVal.missingQty || uVal.missing || 0) : 0;
+                        return { uName, uSku, uQty, uConfirmedSku, uConfirmedQty, uMissingSku, uMissingQty };
+                      }).sort((a, b) => b.uQty - a.uQty);
 
                       const activeWorkerCount = userEntries.length;
                       const topUser = userEntries.length > 0 ? userEntries[0] : null;
@@ -1267,35 +1274,39 @@ export default function Home() {
                                 📅 <span>{formattedDate}</span>
                               </h3>
                               <p className="text-[10px] text-neutral-400 mt-0.5">
-                                Всего собрано излишков: <strong className="text-emerald-400 font-extrabold">{totalItems} шт</strong>
+                                Итого собрано: <strong className="text-emerald-400 font-extrabold">{totalSkus} SKU ({totalQty} шт)</strong>
                               </p>
                             </div>
                             <div className="flex items-center gap-1.5 text-[10px]">
                               <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold px-2 py-0.5 rounded-lg">
-                                Найдено: {confirmedItems} шт
+                                Найдено: {confirmedSkus} SKU ({confirmedQty} шт)
                               </span>
-                              {missingItems > 0 && (
+                              {missingSkus > 0 && (
                                 <span className="bg-red-500/10 border border-red-500/30 text-red-400 font-extrabold px-2 py-0.5 rounded-lg">
-                                  Отсутствует: {missingItems} шт
+                                  Отсутствует: {missingSkus} SKU ({missingQty} шт)
                                 </span>
                               )}
                             </div>
                           </div>
 
                           {/* Quick Summary Widgets */}
-                          <div className="grid grid-cols-3 gap-2 mb-3">
+                          <div className="grid grid-cols-4 gap-1.5 mb-3">
                             <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center">
-                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Всего излишков</span>
-                              <span className="text-xs sm:text-sm font-black text-emerald-400">{totalItems} шт</span>
+                              <span className="text-[8px] text-neutral-400 font-bold block uppercase">SKU (Поз.)</span>
+                              <span className="text-xs sm:text-sm font-black text-amber-400">{totalSkus} SKU</span>
                             </div>
                             <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center">
-                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Сотрудники</span>
+                              <span className="text-[8px] text-neutral-400 font-bold block uppercase">Количество</span>
+                              <span className="text-xs sm:text-sm font-black text-emerald-400">{totalQty} шт</span>
+                            </div>
+                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center">
+                              <span className="text-[8px] text-neutral-400 font-bold block uppercase">Сотрудники</span>
                               <span className="text-xs sm:text-sm font-black text-blue-400">{activeWorkerCount} чел.</span>
                             </div>
                             <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center truncate">
-                              <span className="text-[9px] text-neutral-400 font-bold block uppercase">Лидер дня</span>
-                              <span className="text-xs sm:text-sm font-black text-amber-400 truncate block">
-                                {topUser ? `${topUser.uName.split(" ")[0]} (${topUser.uTotal})` : "-"}
+                              <span className="text-[8px] text-neutral-400 font-bold block uppercase">Лидер дня</span>
+                              <span className="text-xs sm:text-sm font-black text-amber-300 truncate block">
+                                {topUser ? `${topUser.uName.split(" ")[0]} (${topUser.uQty}шт)` : "-"}
                               </span>
                             </div>
                           </div>
@@ -1312,8 +1323,8 @@ export default function Home() {
                             ) : (
                               <div className="flex flex-col gap-1.5">
                                 {userEntries.map((uItem, idx) => {
-                                  const { uName, uTotal, uConfirmed, uMissing } = uItem;
-                                  const pct = totalItems > 0 ? Math.round((uTotal / totalItems) * 100) : 0;
+                                  const { uName, uSku, uQty, uConfirmedSku, uConfirmedQty, uMissingSku, uMissingQty } = uItem;
+                                  const pct = totalQty > 0 ? Math.round((uQty / totalQty) * 100) : 0;
                                   
                                   let rankBadge = "👤";
                                   let rankClass = "bg-neutral-800 text-neutral-400 border-neutral-700";
@@ -1345,8 +1356,8 @@ export default function Home() {
                                           </span>
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0 font-mono">
-                                          <span className="font-black text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
-                                            {uTotal} шт
+                                          <span className="font-black text-amber-400 text-[11px] bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
+                                            {uSku} SKU <span className="text-emerald-400 ml-1">({uQty} шт)</span>
                                           </span>
                                           <span className="text-[10px] text-neutral-400 font-bold w-10 text-right">
                                             ({pct}%)
@@ -1357,11 +1368,11 @@ export default function Home() {
                                       {/* Detailed status breakdown per employee */}
                                       <div className="flex items-center gap-2 text-[9px] font-semibold text-neutral-300 bg-neutral-950/40 px-2 py-1 rounded-lg border border-neutral-850">
                                         <span className="text-emerald-400 font-bold flex items-center gap-1">
-                                          ✓ Найдено: <strong className="font-extrabold font-mono text-emerald-300">{uConfirmed} шт</strong>
+                                          ✓ Найдено: <strong className="font-extrabold font-mono text-emerald-300">{uConfirmedSku} SKU ({uConfirmedQty} шт)</strong>
                                         </span>
                                         <span className="text-neutral-600">|</span>
                                         <span className="text-red-400 font-bold flex items-center gap-1">
-                                          ✗ Отсутствует: <strong className="font-extrabold font-mono text-red-300">{uMissing} шт</strong>
+                                          ✗ Отсутствует: <strong className="font-extrabold font-mono text-red-300">{uMissingSku} SKU ({uMissingQty} шт)</strong>
                                         </span>
                                       </div>
 

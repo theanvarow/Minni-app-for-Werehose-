@@ -309,6 +309,7 @@ function getStats(ss) {
     var placementIdx = -1;
     var userIdx = -1;
     var dateIdx = -1;
+    var qtyIdx = -1;
 
     for (var h = 0; h < headers.length; h++) {
       var hText = headers[h];
@@ -316,9 +317,11 @@ function getStats(ss) {
       if (userIdx === -1 && (hText.indexOf("фио") !== -1 || hText.indexOf("fio") !== -1 || hText.indexOf("пользователь") !== -1)) userIdx = h;
       if (dateIdx === -1 && (hText.indexOf("дата") !== -1 || hText.indexOf("время") !== -1 || hText.indexOf("date") !== -1 || hText.indexOf("timestamp") !== -1)) dateIdx = h;
       if (placementIdx === -1 && (hText.indexOf("размещение") !== -1 || hText.indexOf("placement") !== -1)) placementIdx = h;
+      if (qtyIdx === -1 && (hText.indexOf("количест") !== -1 || hText.indexOf("кол-во") !== -1 || hText.indexOf("qty") !== -1 || hText.indexOf("kol-vo") !== -1 || hText.indexOf("кол") !== -1)) qtyIdx = h;
     }
 
-    // Fallbacks (Matching Sheet layout: D=3: Статус, E=4: ФИО, F=5: Смена, G=6: Дата)
+    // Fallbacks (Matching Sheet layout: C=2: Количество, D=3: Статус, E=4: ФИО, F=5: Смена, G=6: Дата)
+    if (qtyIdx === -1) qtyIdx = 2; // Column C (Quantity)
     if (statusIdx === -1) statusIdx = 3; // Column D (Status)
     if (userIdx === -1) userIdx = 4; // Column E (FIO)
     if (dateIdx === -1) dateIdx = 6; // Column G (Date)
@@ -330,6 +333,8 @@ function getStats(ss) {
       var placementCorrect = String(row[placementIdx] || "").trim();
       var userName = String(row[userIdx] || "").trim();
       var rawDate = row[dateIdx];
+      var itemQty = parseInt(row[qtyIdx], 10);
+      if (isNaN(itemQty) || itemQty <= 0) itemQty = 1;
       
       // If status is empty, it means this item has not been audited yet
       if (!status || status === "") continue;
@@ -406,8 +411,11 @@ function getStats(ss) {
       if (!stats[formattedDate][normalizedKey]) {
         stats[formattedDate][normalizedKey] = {
           total: 0,
+          totalQty: 0,
           confirmed: 0,
+          confirmedQty: 0,
           missing: 0,
+          missingQty: 0,
           placementCorrect: 0,
           placementIncorrect: 0,
           users: {}
@@ -416,6 +424,7 @@ function getStats(ss) {
       
       var sData = stats[formattedDate][normalizedKey];
       sData.total += 1;
+      sData.totalQty = (sData.totalQty || 0) + itemQty;
       
       var normStatus = status.toLowerCase();
       var isConfirmed = normStatus.indexOf("подтвержд") !== -1 || normStatus.indexOf("собр") !== -1 || normStatus === "да" || normStatus.indexOf("готово") !== -1 || normStatus.indexOf("выполн") !== -1 || normStatus.indexOf("найд") !== -1 || normStatus === "ok";
@@ -423,11 +432,13 @@ function getStats(ss) {
 
       if (isConfirmed) {
         sData.confirmed += 1;
+        sData.confirmedQty = (sData.confirmedQty || 0) + itemQty;
       } else if (isMissing) {
         sData.missing += 1;
+        sData.missingQty = (sData.missingQty || 0) + itemQty;
       } else {
-        // Any other non-empty status counts towards confirmed
         sData.confirmed += 1;
+        sData.confirmedQty = (sData.confirmedQty || 0) + itemQty;
       }
       
       var normPlacement = placementCorrect.toLowerCase();
@@ -439,17 +450,35 @@ function getStats(ss) {
       
       if (userName) {
         if (!sData.users[userName]) {
-          sData.users[userName] = { total: 0, confirmed: 0, missing: 0 };
+          sData.users[userName] = { sku: 0, qty: 0, confirmedSku: 0, confirmedQty: 0, missingSku: 0, missingQty: 0 };
         } else if (typeof sData.users[userName] === "number") {
-          sData.users[userName] = { total: sData.users[userName], confirmed: sData.users[userName], missing: 0 };
+          var oldVal = sData.users[userName];
+          sData.users[userName] = { sku: oldVal, qty: oldVal, confirmedSku: oldVal, confirmedQty: oldVal, missingSku: 0, missingQty: 0 };
+        } else if (sData.users[userName].sku === undefined) {
+          var oldObj = sData.users[userName];
+          sData.users[userName] = {
+            sku: oldObj.total || 0,
+            qty: oldObj.total || 0,
+            confirmedSku: oldObj.confirmed || 0,
+            confirmedQty: oldObj.confirmed || 0,
+            missingSku: oldObj.missing || 0,
+            missingQty: oldObj.missing || 0
+          };
         }
-        sData.users[userName].total += 1;
+
+        var uObj = sData.users[userName];
+        uObj.sku += 1;
+        uObj.qty += itemQty;
+        
         if (isConfirmed) {
-          sData.users[userName].confirmed += 1;
+          uObj.confirmedSku += 1;
+          uObj.confirmedQty += itemQty;
         } else if (isMissing) {
-          sData.users[userName].missing += 1;
+          uObj.missingSku += 1;
+          uObj.missingQty += itemQty;
         } else {
-          sData.users[userName].confirmed += 1;
+          uObj.confirmedSku += 1;
+          uObj.confirmedQty += itemQty;
         }
       }
     }
