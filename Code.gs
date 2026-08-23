@@ -18,6 +18,13 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
   
+  // If item update action is requested via GET
+  if (action === 'update' || (e.parameter.rowIndex && e.parameter.status)) {
+    var updateResult = processItemUpdate(e.parameter);
+    return ContentService.createTextOutput(JSON.stringify(updateResult))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
   // If product detail proxy action is requested (bypasses CORS & WAF)
   if (action === 'product') {
     var id = e.parameter.id;
@@ -200,73 +207,86 @@ function doGet(e) {
     })).setMimeType(ContentService.MimeType.JSON);
 }
 
-function doPost(e) {
-  try {
-    var postData = JSON.parse(e.postData.contents);
-    var mode = postData.mode || "proverka";
-    var floorParam = postData.floor || "";
-    var floorUpper = String(floorParam).trim().toUpperCase();
-    var isSgt = (floorUpper === "СГТ" || floorUpper === "SGT" || String(postData.shift).trim().toUpperCase() === "СГТ");
-    var sheetName = isSgt ? "СГТ" : ((mode === "izlishka") ? "излишка" : postData.shift);
-    var rowIndex = parseInt(postData.rowIndex);
-    var status = postData.status;
-    var placementCorrect = postData.placementCorrect || "";
-    var userName = postData.userName;
-    var timestamp = postData.timestamp;
-    var shiftName = postData.shiftName || postData.shift;
-    
-    if (!sheetName || !rowIndex) {
-      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Параметры shift/mode и rowIndex обязательны" }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-    
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName(sheetName);
-    if (!sheet) {
-      var sheets = ss.getSheets();
-      for (var s = 0; s < sheets.length; s++) {
-        var sName = sheets[s].getName().trim().toLowerCase();
-        if (sName === sheetName.toLowerCase() || (isSgt && (sName === "сгт" || sName === "sgt" || sName.indexOf("сгт") !== -1))) {
-          sheet = sheets[s];
-          break;
-        }
+function processItemUpdate(params) {
+  var mode = params.mode || "proverka";
+  var floorParam = params.floor || "";
+  var floorUpper = String(floorParam).trim().toUpperCase();
+  var isSgt = (floorUpper === "СГТ" || floorUpper === "SGT" || String(params.shift).trim().toUpperCase() === "СГТ");
+  var sheetName = isSgt ? "СГТ" : ((mode === "izlishka") ? "излишка" : params.shift);
+  var rowIndex = parseInt(params.rowIndex, 10);
+  var status = params.status;
+  var placementCorrect = params.placementCorrect || "";
+  var userName = params.userName;
+  var timestamp = params.timestamp;
+  var shiftName = params.shiftName || params.shift;
+  
+  if (!sheetName || !rowIndex || isNaN(rowIndex)) {
+    return { success: false, error: "Параметры shift/mode и rowIndex обязательны" };
+  }
+  
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    var sheets = ss.getSheets();
+    for (var s = 0; s < sheets.length; s++) {
+      var sName = sheets[s].getName().trim().toLowerCase();
+      if (sName === sheetName.toLowerCase() || (isSgt && (sName === "сгт" || sName === "sgt" || sName.indexOf("сгт") !== -1))) {
+        sheet = sheets[s];
+        break;
       }
     }
-    if (!sheet) {
-      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Лист '" + sheetName + "' не найден" }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-    
-    // Fixed column positions (1-indexed for getRange)
-    var sLower = sheet.getName().trim().toLowerCase();
-    var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
+  }
+  if (!sheet) {
+    return { success: false, error: "Лист '" + sheetName + "' не найден" };
+  }
+  
+  // Fixed column positions (1-indexed for getRange)
+  var sLower = sheet.getName().trim().toLowerCase();
+  var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
 
-    if (isIzlishkaSheet) {
-      sheet.getRange(rowIndex, 4).setValue(status); // Column D (Status)
-      sheet.getRange(rowIndex, 5).setValue(userName); // Column E (FIO)
-      sheet.getRange(rowIndex, 6).setValue(shiftName); // Column F (Shift)
-      sheet.getRange(rowIndex, 7).setValue(timestamp || new Date()); // Column G (Date)
-    } else {
-      sheet.getRange(rowIndex, 6).setValue(status); // Column F (Status)
-      if (placementCorrect) sheet.getRange(rowIndex, 7).setValue(placementCorrect); // Column G (Placement Correct)
-      sheet.getRange(rowIndex, 8).setValue(userName); // Column H (FIO)
-      sheet.getRange(rowIndex, 9).setValue(shiftName); // Column I (Shift)
-      sheet.getRange(rowIndex, 10).setValue(timestamp || new Date()); // Column J (Date)
+  if (isIzlishkaSheet) {
+    sheet.getRange(rowIndex, 4).setValue(status); // Column D (Status)
+    sheet.getRange(rowIndex, 5).setValue(userName); // Column E (FIO)
+    sheet.getRange(rowIndex, 6).setValue(shiftName); // Column F (Shift)
+    sheet.getRange(rowIndex, 7).setValue(timestamp || new Date()); // Column G (Date)
+  } else {
+    sheet.getRange(rowIndex, 6).setValue(status); // Column F (Status)
+    if (placementCorrect) sheet.getRange(rowIndex, 7).setValue(placementCorrect); // Column G (Placement Correct)
+    sheet.getRange(rowIndex, 8).setValue(userName); // Column H (FIO)
+    sheet.getRange(rowIndex, 9).setValue(shiftName); // Column I (Shift)
+    sheet.getRange(rowIndex, 10).setValue(timestamp || new Date()); // Column J (Date)
+  }
+  
+  SpreadsheetApp.flush();
+  
+  // Clear script cache lock for this row
+  try {
+    var lockKey = ("lock_" + sheetName + "_" + rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
+    CacheService.getScriptCache().remove(lockKey);
+  } catch (lockErr) {}
+
+  // Invalidate stats cache so stats update instantly
+  try {
+    CacheService.getScriptCache().removeAll([
+      "inventory_stats_cache_v11",
+      "inventory_stats_cache_v10",
+      "inventory_stats_cache_v9",
+      "inventory_stats_cache_v8"
+    ]);
+  } catch (cErr) {}
+
+  return { success: true };
+}
+
+function doPost(e) {
+  try {
+    var postData = {};
+    if (e && e.postData && e.postData.contents) {
+      postData = JSON.parse(e.postData.contents);
     }
-    
-    SpreadsheetApp.flush();
-    
-    // Clear script cache lock for this row
-    try {
-      var lockKey = ("lock_" + sheetName + "_" + rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
-      CacheService.getScriptCache().remove(lockKey);
-    } catch (lockErr) {
-      // Ignore cache failures
-    }
-    
-    return ContentService.createTextOutput(JSON.stringify({ success: true }))
+    var result = processItemUpdate(postData);
+    return ContentService.createTextOutput(JSON.stringify(result))
       .setMimeType(ContentService.MimeType.JSON);
-      
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);

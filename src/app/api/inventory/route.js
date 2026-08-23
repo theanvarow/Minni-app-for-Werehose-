@@ -112,7 +112,23 @@ export async function POST(request) {
     statsMemoryCache = { data: null, timestamp: 0 };
     gotovaStatsMemoryCache = { data: null, timestamp: 0 };
 
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
+    // Send update via POST and also append query params for GET redirect resilience
+    const updateQueryParams = new URLSearchParams({
+      action: 'update',
+      rowIndex: String(rowIndex),
+      status: String(status),
+      userName: String(userName),
+      shift: String(shift || ''),
+      shiftName: String(shiftName || ''),
+      placementCorrect: String(placementCorrect || ''),
+      timestamp: String(timestamp || ''),
+      mode: String(mode || ''),
+      floor: String(floor || '')
+    }).toString();
+
+    const targetUrl = `${GOOGLE_SCRIPT_URL}${GOOGLE_SCRIPT_URL.includes('?') ? '&' : '?'}${updateQueryParams}`;
+
+    const response = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain;charset=utf-8', 
