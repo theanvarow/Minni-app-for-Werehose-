@@ -1666,18 +1666,7 @@ export default function Home() {
               >
                 📊 Статистика смен
               </button>
-              <span className="text-neutral-600">|</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowIzlishkaStats(true);
-                  fetchStats();
-                  playSound("click");
-                }}
-                className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-all active:scale-95"
-              >
-                📦 Статистика излишков
-              </button>
+
               <span className="text-neutral-600">|</span>
               <button
                 type="button"
