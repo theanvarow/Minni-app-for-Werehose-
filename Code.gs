@@ -88,9 +88,10 @@ function doGet(e) {
     var barcode = String(row[0] || "").trim();
     var location = String(row[1] || "").trim();
     var category = String(row[2] || "").trim();
-    var name = String(row[3] || "").trim();
-    var qty = String(row[4] || "").trim();
-    var status = String(row[5] || "").trim();
+    var isIzlishkaSheet = (targetSheetName.toLowerCase() === "излишка" || targetSheetName.toLowerCase() === "izlishka" || targetSheetName.toLowerCase() === "излишки");
+    var status = isIzlishkaSheet ? String(row[3] || "").trim() : String(row[5] || "").trim();
+    var name = isIzlishkaSheet ? String(row[0] || "").trim() : String(row[3] || "").trim();
+    var qty = isIzlishkaSheet ? String(row[2] || "").trim() : String(row[4] || "").trim();
     var productId = String(row[10] || "").trim();
     
     // Filter by floor and status (if floor is СГТ, accept any location or location matching СГТ)
