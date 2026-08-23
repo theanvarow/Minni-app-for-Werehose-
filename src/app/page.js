@@ -1305,6 +1305,10 @@ export default function Home() {
 
                       const totalSkus = izData.total || 0;
                       const totalQty = izData.totalQty || totalSkus;
+                      const confirmedSkus = izData.confirmed || 0;
+                      const confirmedQty = izData.confirmedQty || confirmedSkus;
+                      const missingSkus = izData.missing || 0;
+                      const missingQty = izData.missingQty || missingSkus;
 
                       const usersMap = izData.users || {};
 
@@ -1314,9 +1318,6 @@ export default function Home() {
                         const uQty = isObj ? (uVal.qty || uVal.total || 0) : uSku;
                         return { uName, uSku, uQty };
                       }).sort((a, b) => b.uQty - a.uQty);
-
-                      const activeWorkerCount = userEntries.length;
-                      const topUser = userEntries.length > 0 ? userEntries[0] : null;
 
                       return (
                         <div key={dateStr} className="bg-neutral-800/40 border border-neutral-800/90 rounded-2xl p-3.5 shadow-md">
@@ -1332,32 +1333,34 @@ export default function Home() {
                             </div>
                           </div>
 
-                          {/* Quick Summary Widgets */}
-                          <div className="grid grid-cols-4 gap-1.5 mb-3">
-                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center">
+                          {/* Quick Summary Widgets: SKU, Total Qty, Confirmed (Found), Missing */}
+                          <div className="grid grid-cols-4 gap-1.5 mb-3 text-center">
+                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl">
                               <span className="text-[8px] text-neutral-400 font-bold block uppercase">SKU (Поз.)</span>
                               <span className="text-xs sm:text-sm font-black text-amber-400">{totalSkus} SKU</span>
                             </div>
-                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center">
-                              <span className="text-[8px] text-neutral-400 font-bold block uppercase">Количество</span>
-                              <span className="text-xs sm:text-sm font-black text-emerald-400">{totalQty} шт</span>
+                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl">
+                              <span className="text-[8px] text-neutral-400 font-bold block uppercase">Всего (Шт)</span>
+                              <span className="text-xs sm:text-sm font-black text-blue-400">{totalQty} шт</span>
                             </div>
-                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center">
-                              <span className="text-[8px] text-neutral-400 font-bold block uppercase">Сотрудники</span>
-                              <span className="text-xs sm:text-sm font-black text-blue-400">{activeWorkerCount} чел.</span>
+                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl">
+                              <span className="text-[8px] text-emerald-400 font-bold block uppercase">Найдено</span>
+                              <span className="text-xs sm:text-sm font-black text-emerald-400 truncate block">
+                                {confirmedSkus > 0 && confirmedQty !== confirmedSkus ? `${confirmedSkus} SKU (${confirmedQty}шт)` : `${confirmedQty} шт`}
+                              </span>
                             </div>
-                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl text-center truncate">
-                              <span className="text-[8px] text-neutral-400 font-bold block uppercase">Лидер дня</span>
-                              <span className="text-xs sm:text-sm font-black text-amber-300 truncate block">
-                                {topUser ? `${topUser.uName.split(" ")[0]} (${topUser.uQty}шт)` : "-"}
+                            <div className="bg-neutral-900/60 border border-neutral-800 p-2 rounded-xl">
+                              <span className="text-[8px] text-red-400 font-bold block uppercase">Отсутствует</span>
+                              <span className="text-xs sm:text-sm font-black text-red-400 truncate block">
+                                {missingSkus > 0 && missingQty !== missingSkus ? `${missingSkus} SKU (${missingQty}шт)` : `${missingQty} шт`}
                               </span>
                             </div>
                           </div>
 
-                          {/* Employee Leaderboard ("Kim nechta qildi") */}
+                          {/* Employee List ("Кто сколько сделал") */}
                           <div>
                             <h4 className="text-[10px] font-extrabold text-neutral-300 uppercase tracking-wider mb-2 flex items-center justify-between">
-                              <span>👥 Рейтинг сотрудников (&quot;Кто сколько сделал&quot;)</span>
+                              <span>👥 Выполненная работа по сотрудникам</span>
                               <span className="text-neutral-500 text-[9px] font-normal">{userEntries.length} чел.</span>
                             </h4>
 
@@ -1368,21 +1371,6 @@ export default function Home() {
                                 {userEntries.map((uItem, idx) => {
                                   const { uName, uSku, uQty } = uItem;
                                   const pct = totalQty > 0 ? Math.round((uQty / totalQty) * 100) : 0;
-                                  
-                                  let rankBadge = "👤";
-                                  let rankClass = "bg-neutral-800 text-neutral-400 border-neutral-700";
-                                  if (idx === 0) {
-                                    rankBadge = "🥇 1 место";
-                                    rankClass = "bg-amber-500/20 text-amber-300 border-amber-500/40 font-black";
-                                  } else if (idx === 1) {
-                                    rankBadge = "🥈 2 место";
-                                    rankClass = "bg-slate-400/20 text-slate-300 border-slate-400/40 font-black";
-                                  } else if (idx === 2) {
-                                    rankBadge = "🥉 3 место";
-                                    rankClass = "bg-amber-700/20 text-amber-500 border-amber-700/40 font-black";
-                                  } else {
-                                    rankBadge = `${idx + 1} место`;
-                                  }
 
                                   return (
                                     <div
@@ -1390,17 +1378,12 @@ export default function Home() {
                                       className="bg-neutral-900/80 border border-neutral-800 rounded-xl p-2.5 flex flex-col gap-1.5 text-[11px]"
                                     >
                                       <div className="flex justify-between items-center">
-                                        <div className="flex items-center gap-2 min-w-0 pr-2">
-                                          <span className={`text-[9px] px-1.5 py-0.5 rounded border ${rankClass} shrink-0`}>
-                                            {rankBadge}
-                                          </span>
-                                          <span className="font-extrabold text-white truncate" title={uName}>
-                                            {uName}
-                                          </span>
-                                        </div>
+                                        <span className="font-extrabold text-white truncate max-w-[65%]" title={uName}>
+                                          {uName}
+                                        </span>
                                         <div className="flex items-center gap-1.5 shrink-0 font-mono">
                                           <span className="font-black text-amber-400 text-[11px] bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
-                                            {uSku} SKU <span className="text-emerald-400 ml-1">({uQty} шт)</span>
+                                            {uSku > 0 && uQty !== uSku ? `${uSku} SKU (${uQty} шт)` : `${uQty} шт`}
                                           </span>
                                           <span className="text-[10px] text-neutral-400 font-bold w-10 text-right">
                                             ({pct}%)
