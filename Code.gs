@@ -274,7 +274,7 @@ function doPost(e) {
 
 function getStats(ss, force) {
   var cache = CacheService.getScriptCache();
-  var cacheKey = "inventory_stats_cache_v6";
+  var cacheKey = "inventory_stats_cache_v7";
 
   if (!force) {
     try {
@@ -357,7 +357,7 @@ function getStats(ss, force) {
       if (!rawDate && row[5]) rawDate = row[5];
 
       var itemQty = 1;
-      if (qtyIdx !== -1 && row[qtyIdx] !== undefined) {
+      if (isIzlishkaSheet && qtyIdx !== -1 && row[qtyIdx] !== undefined) {
         var parsedQty = parseInt(row[qtyIdx], 10);
         if (!isNaN(parsedQty) && parsedQty > 0) itemQty = parsedQty;
       }
