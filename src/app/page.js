@@ -496,34 +496,25 @@ export default function Home() {
     const formattedTimestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
 
     try {
-      const payload = {
-        rowIndex: currentItem.rowIndex, 
-        status, 
-        userName, 
-        shift: `${shift} смена`, 
-        shiftName: `${shift} смена`, 
-        placementCorrect,
-        timestamp: formattedTimestamp,
-        mode: activeMode,
-        floor: selectedFloor
-      };
-
-      // 1. Primary path: Vercel server-side proxy
-      const proxyPromise = fetch("/api/inventory", {
+      await fetch("/api/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ 
+          rowIndex: currentItem.rowIndex, 
+          status, 
+          userName, 
+          shift: `${shift} смена`, 
+          shiftName: `${shift} смена`, 
+          placementCorrect,
+          timestamp: formattedTimestamp,
+          mode: activeMode,
+          floor: selectedFloor
+        }),
       });
-
-      // 2. Secondary path: Direct browser-to-Google-Script fallback
-      const scriptUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbyrxP7EsoN0tdtId21fXM8DhR2CIlYT65GYn2cXLg1Z1AHMEoxC5N2zycQahWYaT1Mj1g/exec";
-      const directUrl = `${scriptUrl}?action=update&rowIndex=${payload.rowIndex}&status=${encodeURIComponent(payload.status)}&userName=${encodeURIComponent(payload.userName)}&shift=${encodeURIComponent(payload.shift)}&shiftName=${encodeURIComponent(payload.shiftName)}&placementCorrect=${encodeURIComponent(payload.placementCorrect)}&timestamp=${encodeURIComponent(payload.timestamp)}&mode=${encodeURIComponent(payload.mode)}&floor=${encodeURIComponent(payload.floor)}`;
-      
-      fetch(directUrl, { mode: 'no-cors' }).catch(() => {});
-
-      await proxyPromise;
+      // We don't need to await or do anything here. If it succeeds, great.
     } catch (err) {
       console.error("Failed to update item:", err);
+      // Optional: Add it back to the queue if it fails, or show a small toast error
     }
   };
 
@@ -574,7 +565,17 @@ export default function Home() {
             >
               📊 Смены
             </button>
-
+            <button
+              onClick={() => {
+                setShowStats(false);
+                setShowIzlishkaStats(true);
+                fetchStats();
+                playSound("click");
+              }}
+              className="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+            >
+              📦 Излишка
+            </button>
             <button
               onClick={() => {
                 setShowStats(false);
@@ -769,10 +770,15 @@ export default function Home() {
                                               
                                               return (
                                                 <div key={u} className="flex justify-between items-center text-neutral-200 py-0.5 text-[9px]">
-                                                  <span className="font-bold text-neutral-100 truncate max-w-[65%]" title={u}>{u}</span>
-                                                  <span className="font-mono text-amber-400 font-black text-[9px] bg-amber-500/10 px-1.5 py-0.5 rounded">
-                                                    {uQty} SKU
-                                                  </span>
+                                                  <span className="font-bold text-neutral-100 truncate max-w-[50%]" title={u}>{u}</span>
+                                                  <div className="flex items-center gap-1 font-mono">
+                                                    <span className="text-emerald-400 font-bold" title="Найдено">✓{uConf}</span>
+                                                    {uMiss > 0 && <span className="text-red-400 font-bold" title="Отсутствует">✗{uMiss}</span>}
+                                                    {uPlac > 0 && <span className="text-amber-300 font-bold" title="Правильное размещение">🎯{uPlac}</span>}
+                                                    <span className="font-mono text-amber-400 font-black bg-amber-500/10 px-1 py-0.5 rounded ml-0.5">
+                                                      {uSku} SKU ({uQty} шт)
+                                                    </span>
+                                                  </div>
                                                 </div>
                                               );
                                             })}
@@ -878,7 +884,17 @@ export default function Home() {
             >
               📊 Смены
             </button>
-
+            <button
+              onClick={() => {
+                setShowGotovaStats(false);
+                setShowIzlishkaStats(true);
+                fetchStats();
+                playSound("click");
+              }}
+              className="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+            >
+              📦 Излишка
+            </button>
             <button
               className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm"
             >
@@ -1559,7 +1575,18 @@ export default function Home() {
               >
                 📊 Смены
               </button>
-
+              <span className="text-neutral-600">|</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowIzlishkaStats(true);
+                  fetchStats();
+                  playSound("click");
+                }}
+                className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-all active:scale-95"
+              >
+                📦 Излишка
+              </button>
               <span className="text-neutral-600">|</span>
               <button
                 type="button"
@@ -1664,7 +1691,18 @@ export default function Home() {
               >
                 📊 Статистика смен
               </button>
-
+              <span className="text-neutral-600">|</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowIzlishkaStats(true);
+                  fetchStats();
+                  playSound("click");
+                }}
+                className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-all active:scale-95"
+              >
+                📦 Статистика излишков
+              </button>
               <span className="text-neutral-600">|</span>
               <button
                 type="button"
@@ -1734,14 +1772,20 @@ export default function Home() {
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                  setShowStats(true);
-                  fetchStats();
-                  playSound("click");
-                }}
-                className="px-2.5 py-2.5 bg-neutral-850 hover:bg-neutral-800 border border-neutral-700 rounded-xl text-xs font-bold text-neutral-300 hover:text-white transition active:scale-95 flex items-center gap-1"
-              >
-                📊 Статистика
-              </button>
+                    if (activeMode === "izlishka") {
+                      setShowIzlishkaStats(true);
+                    } else {
+                      setShowStats(true);
+                    }
+                    fetchStats();
+                    playSound("click");
+                  }}
+                  className={`px-2.5 py-2.5 bg-neutral-850 hover:bg-neutral-800 border rounded-xl text-xs font-bold transition active:scale-95 flex items-center gap-1 ${
+                    activeMode === "izlishka" ? "text-emerald-400 border-emerald-500/40" : "text-neutral-300 border-neutral-700 hover:text-white"
+                  }`}
+                >
+                  {activeMode === "izlishka" ? "📦 Статистика" : "📊 Статистика"}
+                </button>
 
                 <button 
                   onClick={() => {

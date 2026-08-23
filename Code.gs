@@ -18,13 +18,6 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
   
-  // If item update action is requested via GET
-  if (action === 'update' || (e.parameter.rowIndex && e.parameter.status)) {
-    var updateResult = processItemUpdate(e.parameter);
-    return ContentService.createTextOutput(JSON.stringify(updateResult))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  
   // If product detail proxy action is requested (bypasses CORS & WAF)
   if (action === 'product') {
     var id = e.parameter.id;
@@ -95,10 +88,9 @@ function doGet(e) {
     var barcode = String(row[0] || "").trim();
     var location = String(row[1] || "").trim();
     var category = String(row[2] || "").trim();
-    var isIzlishkaSheet = (targetSheetName.toLowerCase() === "излишка" || targetSheetName.toLowerCase() === "izlishka" || targetSheetName.toLowerCase() === "излишки");
-    var status = isIzlishkaSheet ? String(row[3] || "").trim() : String(row[5] || "").trim();
-    var name = isIzlishkaSheet ? String(row[0] || "").trim() : String(row[3] || "").trim();
-    var qty = isIzlishkaSheet ? String(row[2] || "").trim() : String(row[4] || "").trim();
+    var name = String(row[3] || "").trim();
+    var qty = String(row[4] || "").trim();
+    var status = String(row[5] || "").trim();
     var productId = String(row[10] || "").trim();
     
     // Filter by floor and status (if floor is СГТ, accept any location or location matching СГТ)
@@ -207,86 +199,73 @@ function doGet(e) {
     })).setMimeType(ContentService.MimeType.JSON);
 }
 
-function processItemUpdate(params) {
-  var mode = params.mode || "proverka";
-  var floorParam = params.floor || "";
-  var floorUpper = String(floorParam).trim().toUpperCase();
-  var isSgt = (floorUpper === "СГТ" || floorUpper === "SGT" || String(params.shift).trim().toUpperCase() === "СГТ");
-  var sheetName = isSgt ? "СГТ" : ((mode === "izlishka") ? "излишка" : params.shift);
-  var rowIndex = parseInt(params.rowIndex, 10);
-  var status = params.status;
-  var placementCorrect = params.placementCorrect || "";
-  var userName = params.userName;
-  var timestamp = params.timestamp;
-  var shiftName = params.shiftName || params.shift;
-  
-  if (!sheetName || !rowIndex || isNaN(rowIndex)) {
-    return { success: false, error: "Параметры shift/mode и rowIndex обязательны" };
-  }
-  
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) {
-    var sheets = ss.getSheets();
-    for (var s = 0; s < sheets.length; s++) {
-      var sName = sheets[s].getName().trim().toLowerCase();
-      if (sName === sheetName.toLowerCase() || (isSgt && (sName === "сгт" || sName === "sgt" || sName.indexOf("сгт") !== -1))) {
-        sheet = sheets[s];
-        break;
-      }
-    }
-  }
-  if (!sheet) {
-    return { success: false, error: "Лист '" + sheetName + "' не найден" };
-  }
-  
-  // Fixed column positions (1-indexed for getRange)
-  var sLower = sheet.getName().trim().toLowerCase();
-  var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
-
-  if (isIzlishkaSheet) {
-    sheet.getRange(rowIndex, 4).setValue(status); // Column D (Status)
-    sheet.getRange(rowIndex, 5).setValue(userName); // Column E (FIO)
-    sheet.getRange(rowIndex, 6).setValue(shiftName); // Column F (Shift)
-    sheet.getRange(rowIndex, 7).setValue(timestamp || new Date()); // Column G (Date)
-  } else {
-    sheet.getRange(rowIndex, 6).setValue(status); // Column F (Status)
-    if (placementCorrect) sheet.getRange(rowIndex, 7).setValue(placementCorrect); // Column G (Placement Correct)
-    sheet.getRange(rowIndex, 8).setValue(userName); // Column H (FIO)
-    sheet.getRange(rowIndex, 9).setValue(shiftName); // Column I (Shift)
-    sheet.getRange(rowIndex, 10).setValue(timestamp || new Date()); // Column J (Date)
-  }
-  
-  SpreadsheetApp.flush();
-  
-  // Clear script cache lock for this row
-  try {
-    var lockKey = ("lock_" + sheetName + "_" + rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
-    CacheService.getScriptCache().remove(lockKey);
-  } catch (lockErr) {}
-
-  // Invalidate stats cache so stats update instantly
-  try {
-    CacheService.getScriptCache().removeAll([
-      "inventory_stats_cache_v11",
-      "inventory_stats_cache_v10",
-      "inventory_stats_cache_v9",
-      "inventory_stats_cache_v8"
-    ]);
-  } catch (cErr) {}
-
-  return { success: true };
-}
-
 function doPost(e) {
   try {
-    var postData = {};
-    if (e && e.postData && e.postData.contents) {
-      postData = JSON.parse(e.postData.contents);
+    var postData = JSON.parse(e.postData.contents);
+    var mode = postData.mode || "proverka";
+    var floorParam = postData.floor || "";
+    var floorUpper = String(floorParam).trim().toUpperCase();
+    var isSgt = (floorUpper === "СГТ" || floorUpper === "SGT" || String(postData.shift).trim().toUpperCase() === "СГТ");
+    var sheetName = isSgt ? "СГТ" : ((mode === "izlishka") ? "излишка" : postData.shift);
+    var rowIndex = parseInt(postData.rowIndex);
+    var status = postData.status;
+    var placementCorrect = postData.placementCorrect || "";
+    var userName = postData.userName;
+    var timestamp = postData.timestamp;
+    var shiftName = postData.shiftName || postData.shift;
+    
+    if (!sheetName || !rowIndex) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Параметры shift/mode и rowIndex обязательны" }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
-    var result = processItemUpdate(postData);
-    return ContentService.createTextOutput(JSON.stringify(result))
+    
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      var sheets = ss.getSheets();
+      for (var s = 0; s < sheets.length; s++) {
+        var sName = sheets[s].getName().trim().toLowerCase();
+        if (sName === sheetName.toLowerCase() || (isSgt && (sName === "сгт" || sName === "sgt" || sName.indexOf("сгт") !== -1))) {
+          sheet = sheets[s];
+          break;
+        }
+      }
+    }
+    if (!sheet) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Лист '" + sheetName + "' не найден" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Fixed column positions (1-indexed for getRange)
+    var sLower = sheet.getName().trim().toLowerCase();
+    var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
+
+    if (isIzlishkaSheet) {
+      sheet.getRange(rowIndex, 4).setValue(status); // Column D (Status)
+      sheet.getRange(rowIndex, 5).setValue(userName); // Column E (FIO)
+      sheet.getRange(rowIndex, 6).setValue(shiftName); // Column F (Shift)
+      sheet.getRange(rowIndex, 7).setValue(timestamp || new Date()); // Column G (Date)
+    } else {
+      sheet.getRange(rowIndex, 6).setValue(status); // Column F (Status)
+      if (placementCorrect) sheet.getRange(rowIndex, 7).setValue(placementCorrect); // Column G (Placement Correct)
+      sheet.getRange(rowIndex, 8).setValue(userName); // Column H (FIO)
+      sheet.getRange(rowIndex, 9).setValue(shiftName); // Column I (Shift)
+      sheet.getRange(rowIndex, 10).setValue(timestamp || new Date()); // Column J (Date)
+    }
+    
+    SpreadsheetApp.flush();
+    
+    // Clear script cache lock for this row
+    try {
+      var lockKey = ("lock_" + sheetName + "_" + rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
+      CacheService.getScriptCache().remove(lockKey);
+    } catch (lockErr) {
+      // Ignore cache failures
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ success: true }))
       .setMimeType(ContentService.MimeType.JSON);
+      
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -295,7 +274,7 @@ function doPost(e) {
 
 function getStats(ss, force) {
   var cache = CacheService.getScriptCache();
-  var cacheKey = "inventory_stats_cache_v11";
+  var cacheKey = "inventory_stats_cache_v3";
 
   if (!force) {
     try {
@@ -320,7 +299,7 @@ function getStats(ss, force) {
       normalizedKey = "излишка";
     }
     
-    // Ignore non-shift sheets except we process shift sheets and izlishka
+    // Ignore non-shift sheets except we process shift sheets
     if (sLower.indexOf("готова") !== -1 || sLower.indexOf("gotova") !== -1 || sLower.indexOf("отчет") !== -1 || sLower.indexOf("report") !== -1) {
       continue;
     }
@@ -338,60 +317,45 @@ function getStats(ss, force) {
     var dateIdx = -1;
     var qtyIdx = -1;
 
-    var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
-
     for (var h = 0; h < headers.length; h++) {
       var hText = headers[h];
       if (barcodeIdx === -1 && (hText.indexOf("штрих") !== -1 || hText.indexOf("barcode") !== -1 || hText.indexOf("sku") !== -1 || hText.indexOf("артикул") !== -1)) barcodeIdx = h;
       if (statusIdx === -1 && (hText.indexOf("статус") !== -1 || hText.indexOf("status") !== -1)) statusIdx = h;
-      if (userIdx === -1 && (hText.indexOf("фио") !== -1 || hText.indexOf("fio") !== -1 || hText.indexOf("пользователь") !== -1 || hText.indexOf("имя") !== -1 || hText.indexOf("сотрудник") !== -1)) userIdx = h;
+      if (userIdx === -1 && (hText.indexOf("фио") !== -1 || hText.indexOf("fio") !== -1 || hText.indexOf("пользователь") !== -1)) userIdx = h;
       if (dateIdx === -1 && (hText.indexOf("дата") !== -1 || hText.indexOf("время") !== -1 || hText.indexOf("date") !== -1 || hText.indexOf("timestamp") !== -1)) dateIdx = h;
       if (placementIdx === -1 && (hText.indexOf("размещение") !== -1 || hText.indexOf("placement") !== -1)) placementIdx = h;
-      if (isIzlishkaSheet && qtyIdx === -1 && (hText.indexOf("количест") !== -1 || hText.indexOf("кол-во") !== -1 || hText.indexOf("qty") !== -1 || hText.indexOf("kol-vo") !== -1 || hText === "кол")) qtyIdx = h;
+      if (qtyIdx === -1 && (hText.indexOf("количест") !== -1 || hText.indexOf("кол-во") !== -1 || hText.indexOf("qty") !== -1 || hText.indexOf("kol-vo") !== -1 || hText.indexOf("кол") !== -1)) qtyIdx = h;
     }
 
-    // Fallbacks ONLY if header search did not find matching column:
-    if (barcodeIdx === -1) barcodeIdx = 0; // Column A
-    if (qtyIdx === -1) qtyIdx = isIzlishkaSheet ? 2 : -1; // Izlishka = Col C, Shift sheets have no Qty col (1 per row)
-    if (statusIdx === -1) statusIdx = isIzlishkaSheet ? 3 : 5; // Izlishka = D, Shift = F
-    if (userIdx === -1) userIdx = isIzlishkaSheet ? 4 : 7;     // Izlishka = E, Shift = H
-    if (dateIdx === -1) dateIdx = isIzlishkaSheet ? 6 : 9;     // Izlishka = G, Shift = J
-    if (placementIdx === -1) placementIdx = isIzlishkaSheet ? -1 : 6;
+    var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
+
+    // Sheet-aware default fallbacks (0-indexed for array access):
+    if (barcodeIdx === -1) barcodeIdx = 0; // Column A (0)
+    if (qtyIdx === -1) qtyIdx = 2; // Column C (2)
+    if (statusIdx === -1) statusIdx = isIzlishkaSheet ? 3 : 5; // Izlishka = D (3), Shift = F (5)
+    if (userIdx === -1) userIdx = isIzlishkaSheet ? 4 : 7; // Izlishka = E (4), Shift = H (7)
+    if (dateIdx === -1) dateIdx = isIzlishkaSheet ? 6 : 9; // Izlishka = G (6), Shift = J (9)
+    if (placementIdx === -1) placementIdx = 6;
     
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
-      var barcode = String(row[barcodeIdx] || "").trim();
+      var barcode = String(row[barcodeIdx] || ("row_" + i)).trim();
       var status = String(row[statusIdx] || "").trim();
-      var placementCorrect = (placementIdx !== -1 && row[placementIdx]) ? String(row[placementIdx]).trim() : "";
+      var placementCorrect = String(row[placementIdx] || "").trim();
       var userName = String(row[userIdx] || "").trim();
       
-      // If row has no barcode and no user, skip empty rows completely
-      if (!barcode && !userName) continue;
-      if (!barcode) barcode = "row_" + i;
-      
-      // Multi-column date check: try primary dateIdx, then check columns 6, 7, 9, 10, 5 if empty
+      // Multi-column date check: try primary dateIdx, then check columns 9, 10, 6, 7 if empty
       var rawDate = row[dateIdx];
-      if (!rawDate && row[6]) rawDate = row[6];
-      if (!rawDate && row[7]) rawDate = row[7];
       if (!rawDate && row[9]) rawDate = row[9];
       if (!rawDate && row[10]) rawDate = row[10];
-      if (!rawDate && row[5]) rawDate = row[5];
+      if (!rawDate && row[6]) rawDate = row[6];
+      if (!rawDate && row[7]) rawDate = row[7];
 
-      var itemQty = 1;
-      if (isIzlishkaSheet && qtyIdx !== -1 && row[qtyIdx] !== undefined) {
-        var parsedQty = parseInt(row[qtyIdx], 10);
-        if (!isNaN(parsedQty) && parsedQty > 0) itemQty = parsedQty;
-      }
+      var itemQty = parseInt(row[qtyIdx], 10);
+      if (isNaN(itemQty) || itemQty <= 0) itemQty = 1;
       
-      // For shift sheets: skip un-audited rows (empty status)
-      // For Izlishka sheet: if status is empty BUT userName or valid barcode exists, treat status as "Собрано"
-      if (!status || status === "") {
-        if (isIzlishkaSheet && (userName !== "" || barcode.indexOf("row_") === -1)) {
-          status = "Собрано";
-        } else {
-          continue;
-        }
-      }
+      // If status is empty, it means this item has not been audited yet
+      if (!status || status === "") continue;
       
       // Parse Date from timestamp flexibly
       var formattedDate = "";
@@ -403,57 +367,39 @@ function getStats(ss, force) {
           formattedDate = year + "-" + month + "-" + day;
         } else if (rawDate) {
           var dateStr = String(rawDate).trim();
-          var datePart = dateStr.split(" ")[0].split("T")[0];
-          
-          if (datePart.indexOf(".") !== -1) {
-            var parts = datePart.split(".");
+          if (dateStr.indexOf(".") !== -1) {
+            // e.g. 14.08.2026 or 14.08.2026 11:45:00
+            var parts = dateStr.split(" ")[0].split(".");
             if (parts.length === 3) {
-              if (parts[0].length === 4) { // YYYY.MM.DD
-                formattedDate = parts[0] + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[2]).slice(-2);
-              } else { // DD.MM.YYYY
-                var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
-                var m = ("0" + parts[1]).slice(-2);
-                var d = ("0" + parts[0]).slice(-2);
-                formattedDate = y + "-" + m + "-" + d;
-              }
+              var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+              var m = ("0" + parts[1]).slice(-2);
+              var d = ("0" + parts[0]).slice(-2);
+              formattedDate = y + "-" + m + "-" + d;
             }
-          } else if (datePart.indexOf("-") !== -1) {
+          } else if (dateStr.indexOf("-") !== -1) {
+            // e.g. 2026-08-14 or 2026-08-14 11:45:00 or 2026-08-14T11:45:00
+            var datePart = dateStr.split(" ")[0].split("T")[0];
             var parts = datePart.split("-");
             if (parts.length === 3) {
-              if (parts[0].length === 4) { // YYYY-MM-DD
-                formattedDate = parts[0] + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[2]).slice(-2);
-              } else { // DD-MM-YYYY
-                var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
-                var m = ("0" + parts[1]).slice(-2);
-                var d = ("0" + parts[0]).slice(-2);
-                formattedDate = y + "-" + m + "-" + d;
-              }
+              var y = parts[0];
+              var m = ("0" + parts[1]).slice(-2);
+              var d = ("0" + parts[2]).slice(-2);
+              formattedDate = y + "-" + m + "-" + d;
             }
-          } else if (datePart.indexOf("/") !== -1) {
-            var parts = datePart.split("/");
+          } else if (dateStr.indexOf("/") !== -1) {
+            // e.g. 14/08/2026 or 2026/08/14
+            var parts = dateStr.split(" ")[0].split("/");
             if (parts.length === 3) {
-              if (parts[0].length === 4) { // YYYY/MM/DD
+              if (parts[0].length === 4) {
                 formattedDate = parts[0] + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[2]).slice(-2);
-              } else if (parseInt(parts[0], 10) > 12) { // DD/MM/YYYY
-                var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
-                var m = ("0" + parts[1]).slice(-2);
-                var d = ("0" + parts[0]).slice(-2);
-                formattedDate = y + "-" + m + "-" + d;
-              } else if (parseInt(parts[1], 10) > 12) { // MM/DD/YYYY
-                var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
-                var m = ("0" + parts[0]).slice(-2);
-                var d = ("0" + parts[1]).slice(-2);
-                formattedDate = y + "-" + m + "-" + d;
-              } else { // Fallback DD/MM/YYYY
+              } else {
                 var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
                 var m = ("0" + parts[1]).slice(-2);
                 var d = ("0" + parts[0]).slice(-2);
                 formattedDate = y + "-" + m + "-" + d;
               }
             }
-          }
-          
-          if (!formattedDate) {
+          } else {
             var dateObj = new Date(dateStr);
             if (!isNaN(dateObj.getTime())) {
               var year = dateObj.getFullYear();
