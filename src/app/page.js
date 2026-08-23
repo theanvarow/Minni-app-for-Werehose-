@@ -765,22 +765,12 @@ export default function Home() {
                                               const uSku = isObj ? (uVal.confirmedSku !== undefined ? uVal.confirmedSku : (uVal.sku || 0)) : (uVal || 0);
                                               const uQty = isObj ? (uVal.confirmedQty !== undefined ? uVal.confirmedQty : (uVal.qty || 0)) : uSku;
                                               
-                                              const userTarget = 300;
-                                              const userPct = Math.min(Math.round((uSku / userTarget) * 100), 100);
-                                              const isUserCompleted = uSku >= userTarget;
-                                              
                                               return (
                                                 <div key={u} className="flex justify-between items-center text-neutral-200 py-0.5 text-[9px]">
-                                                  <span className="font-bold text-neutral-100 truncate max-w-[50%]" title={u}>{u}</span>
-                                                  <div className="flex items-center gap-1">
-                                                    {isUserCompleted && (
-                                                      <span className="text-[8px] bg-emerald-500/20 text-emerald-400 font-extrabold px-1 rounded border border-emerald-500/30">План 300 ✅</span>
-                                                    )}
-                                                    <span className="font-mono text-amber-400 font-black text-[9px] bg-amber-500/10 px-1.5 py-0.5 rounded">
-                                                      {uSku > 0 && uQty !== uSku ? `${uSku} SKU (${uQty} шт)` : `${uSku} SKU`}
-                                                    </span>
-                                                    <span className="text-[8px] text-neutral-400 font-bold font-mono">({userPct}%)</span>
-                                                  </div>
+                                                  <span className="font-bold text-neutral-100 truncate max-w-[65%]" title={u}>{u}</span>
+                                                  <span className="font-mono text-amber-400 font-black text-[9px] bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                                    {uSku > 0 && uQty !== uSku ? `${uSku} SKU (${uQty} шт)` : `${uQty} шт`}
+                                                  </span>
                                                 </div>
                                               );
                                             })}
