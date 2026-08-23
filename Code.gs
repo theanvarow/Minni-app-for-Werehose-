@@ -236,12 +236,22 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
     
-    // Write data back to Google Sheet
-    sheet.getRange(rowIndex, 6).setValue(status); // Column F (Status)
-    sheet.getRange(rowIndex, 7).setValue(placementCorrect); // Column G (Placement Correct)
-    sheet.getRange(rowIndex, 8).setValue(userName); // Column H (FIO)
-    sheet.getRange(rowIndex, 9).setValue(shiftName); // Column I (Shift)
-    sheet.getRange(rowIndex, 10).setValue(timestamp || new Date()); // Column J (Date)
+    // Fixed column positions (1-indexed for getRange)
+    var sLower = sheet.getName().trim().toLowerCase();
+    var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
+
+    if (isIzlishkaSheet) {
+      sheet.getRange(rowIndex, 4).setValue(status); // Column D (Status)
+      sheet.getRange(rowIndex, 5).setValue(userName); // Column E (FIO)
+      sheet.getRange(rowIndex, 6).setValue(shiftName); // Column F (Shift)
+      sheet.getRange(rowIndex, 7).setValue(timestamp || new Date()); // Column G (Date)
+    } else {
+      sheet.getRange(rowIndex, 6).setValue(status); // Column F (Status)
+      if (placementCorrect) sheet.getRange(rowIndex, 7).setValue(placementCorrect); // Column G (Placement Correct)
+      sheet.getRange(rowIndex, 8).setValue(userName); // Column H (FIO)
+      sheet.getRange(rowIndex, 9).setValue(shiftName); // Column I (Shift)
+      sheet.getRange(rowIndex, 10).setValue(timestamp || new Date()); // Column J (Date)
+    }
     
     SpreadsheetApp.flush();
     
@@ -262,7 +272,21 @@ function doPost(e) {
   }
 }
 
-function getStats(ss) {
+function getStats(ss, force) {
+  var cache = CacheService.getScriptCache();
+  var cacheKey = "inventory_stats_cache_v3";
+
+  if (!force) {
+    try {
+      var cachedStr = cache.get(cacheKey);
+      if (cachedStr) {
+        return JSON.parse(cachedStr);
+      }
+    } catch (e) {
+      // Ignore cache errors
+    }
+  }
+
   var sheets = ss.getSheets();
   var stats = {};
   
@@ -270,6 +294,10 @@ function getStats(ss) {
     var sheet = sheets[s];
     var sheetName = sheet.getName().trim();
     var sLower = sheetName.toLowerCase();
+    var normalizedKey = sheetName;
+    if (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka") {
+      normalizedKey = "излишка";
+    }
     
     // Ignore non-shift sheets except we process shift sheets
     if (sLower.indexOf("готова") !== -1 || sLower.indexOf("gotova") !== -1 || sLower.indexOf("отчет") !== -1 || sLower.indexOf("report") !== -1) {
@@ -281,26 +309,50 @@ function getStats(ss) {
     
     var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
     
-    // Find column indices dynamically
-    var statusIdx = headers.indexOf("статус");
-    var placementIdx = headers.indexOf("размещение верно");
-    var userIdx = headers.indexOf("фио");
-    var dateIdx = headers.indexOf("дата");
-    if (dateIdx === -1) dateIdx = headers.indexOf("время");
-    if (dateIdx === -1) dateIdx = headers.indexOf("timestamp");
-    
-    // Fallbacks
-    if (statusIdx === -1) statusIdx = 5;
+    // Find column indices dynamically with substring matching
+    var barcodeIdx = -1;
+    var statusIdx = -1;
+    var placementIdx = -1;
+    var userIdx = -1;
+    var dateIdx = -1;
+    var qtyIdx = -1;
+
+    for (var h = 0; h < headers.length; h++) {
+      var hText = headers[h];
+      if (barcodeIdx === -1 && (hText.indexOf("штрих") !== -1 || hText.indexOf("barcode") !== -1 || hText.indexOf("sku") !== -1 || hText.indexOf("артикул") !== -1)) barcodeIdx = h;
+      if (statusIdx === -1 && (hText.indexOf("статус") !== -1 || hText.indexOf("status") !== -1)) statusIdx = h;
+      if (userIdx === -1 && (hText.indexOf("фио") !== -1 || hText.indexOf("fio") !== -1 || hText.indexOf("пользователь") !== -1)) userIdx = h;
+      if (dateIdx === -1 && (hText.indexOf("дата") !== -1 || hText.indexOf("время") !== -1 || hText.indexOf("date") !== -1 || hText.indexOf("timestamp") !== -1)) dateIdx = h;
+      if (placementIdx === -1 && (hText.indexOf("размещение") !== -1 || hText.indexOf("placement") !== -1)) placementIdx = h;
+      if (qtyIdx === -1 && (hText.indexOf("количест") !== -1 || hText.indexOf("кол-во") !== -1 || hText.indexOf("qty") !== -1 || hText.indexOf("kol-vo") !== -1 || hText.indexOf("кол") !== -1)) qtyIdx = h;
+    }
+
+    var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
+
+    // Sheet-aware default fallbacks (0-indexed for array access):
+    if (barcodeIdx === -1) barcodeIdx = 0; // Column A (0)
+    if (qtyIdx === -1) qtyIdx = 2; // Column C (2)
+    if (statusIdx === -1) statusIdx = isIzlishkaSheet ? 3 : 5; // Izlishka = D (3), Shift = F (5)
+    if (userIdx === -1) userIdx = isIzlishkaSheet ? 4 : 7; // Izlishka = E (4), Shift = H (7)
+    if (dateIdx === -1) dateIdx = isIzlishkaSheet ? 6 : 9; // Izlishka = G (6), Shift = J (9)
     if (placementIdx === -1) placementIdx = 6;
-    if (userIdx === -1) userIdx = 7;
-    if (dateIdx === -1) dateIdx = 9;
     
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
+      var barcode = String(row[barcodeIdx] || ("row_" + i)).trim();
       var status = String(row[statusIdx] || "").trim();
       var placementCorrect = String(row[placementIdx] || "").trim();
       var userName = String(row[userIdx] || "").trim();
+      
+      // Multi-column date check: try primary dateIdx, then check columns 9, 10, 6, 7 if empty
       var rawDate = row[dateIdx];
+      if (!rawDate && row[9]) rawDate = row[9];
+      if (!rawDate && row[10]) rawDate = row[10];
+      if (!rawDate && row[6]) rawDate = row[6];
+      if (!rawDate && row[7]) rawDate = row[7];
+
+      var itemQty = parseInt(row[qtyIdx], 10);
+      if (isNaN(itemQty) || itemQty <= 0) itemQty = 1;
       
       // If status is empty, it means this item has not been audited yet
       if (!status || status === "") continue;
@@ -374,53 +426,161 @@ function getStats(ss) {
         stats[formattedDate] = {};
       }
       
-      if (!stats[formattedDate][sheetName]) {
-        stats[formattedDate][sheetName] = {
-          total: 0,
-          confirmed: 0,
-          missing: 0,
+      if (!stats[formattedDate][normalizedKey]) {
+        stats[formattedDate][normalizedKey] = {
+          total: 0,           // Unique barcodes / SKU count
+          totalQty: 0,        // Sum of item quantity / pieces
+          totalRows: 0,       // Total rows count
+          confirmed: 0,       // Confirmed unique SKUs
+          confirmedQty: 0,    // Confirmed pieces
+          missing: 0,         // Missing unique SKUs
+          missingQty: 0,      // Missing pieces
           placementCorrect: 0,
           placementIncorrect: 0,
+          barcodesMap: {},
+          confirmedBarcodesMap: {},
+          missingBarcodesMap: {},
           users: {}
         };
       }
       
-      var sData = stats[formattedDate][sheetName];
-      sData.total += 1;
+      var sData = stats[formattedDate][normalizedKey];
+      sData.totalRows += 1;
+      sData.totalQty = (sData.totalQty || 0) + itemQty;
+      if (!sData.barcodesMap[barcode]) {
+        sData.barcodesMap[barcode] = true;
+        sData.total += 1;
+      }
       
       var normStatus = status.toLowerCase();
       var isConfirmed = normStatus.indexOf("подтвержд") !== -1 || normStatus.indexOf("собр") !== -1 || normStatus === "да" || normStatus.indexOf("готово") !== -1 || normStatus.indexOf("выполн") !== -1 || normStatus.indexOf("найд") !== -1 || normStatus === "ok";
       var isMissing = normStatus.indexOf("отсут") !== -1 || normStatus.indexOf("нет") !== -1 || normStatus.indexOf("не ") !== -1 || normStatus.indexOf("ненайд") !== -1;
 
       if (isConfirmed) {
-        sData.confirmed += 1;
+        sData.confirmedQty = (sData.confirmedQty || 0) + itemQty;
+        if (!sData.confirmedBarcodesMap[barcode]) {
+          sData.confirmedBarcodesMap[barcode] = true;
+          sData.confirmed += 1;
+        }
       } else if (isMissing) {
-        sData.missing += 1;
+        sData.missingQty = (sData.missingQty || 0) + itemQty;
+        if (!sData.missingBarcodesMap[barcode]) {
+          sData.missingBarcodesMap[barcode] = true;
+          sData.missing += 1;
+        }
       } else {
-        // Any other non-empty status counts towards confirmed
-        sData.confirmed += 1;
+        sData.confirmedQty = (sData.confirmedQty || 0) + itemQty;
+        if (!sData.confirmedBarcodesMap[barcode]) {
+          sData.confirmedBarcodesMap[barcode] = true;
+          sData.confirmed += 1;
+        }
       }
       
       var normPlacement = placementCorrect.toLowerCase();
-      if (normPlacement === "да" || normPlacement === "yes" || normPlacement === "верно") {
+      var isPlacementOk = normPlacement.indexOf("да") !== -1 || normPlacement.indexOf("yes") !== -1 || normPlacement.indexOf("верн") !== -1 || normPlacement === "ok" || normPlacement === "1" || (normStatus.indexOf("подтвержд") !== -1 && (normPlacement === "" || normPlacement === "да"));
+      var isPlacementErr = normPlacement.indexOf("нет") !== -1 || normPlacement.indexOf("no") !== -1 || normPlacement.indexOf("неверн") !== -1 || normPlacement === "0";
+
+      if (isPlacementOk) {
         sData.placementCorrect += 1;
-      } else if (normPlacement === "нет" || normPlacement === "no" || normPlacement === "неверно") {
+      } else if (isPlacementErr) {
         sData.placementIncorrect += 1;
       }
       
       if (userName) {
         if (!sData.users[userName]) {
-          sData.users[userName] = 0;
+          sData.users[userName] = {
+            sku: 0,
+            qty: 0,
+            confirmedSku: 0,
+            confirmedQty: 0,
+            missingSku: 0,
+            missingQty: 0,
+            placementCorrect: 0,
+            placementIncorrect: 0,
+            barcodesMap: {},
+            confirmedBarcodesMap: {},
+            missingBarcodesMap: {}
+          };
+        } else if (typeof sData.users[userName] === "number") {
+          var oldVal = sData.users[userName];
+          sData.users[userName] = {
+            sku: oldVal,
+            qty: oldVal,
+            confirmedSku: oldVal,
+            confirmedQty: oldVal,
+            missingSku: 0,
+            missingQty: 0,
+            placementCorrect: 0,
+            placementIncorrect: 0,
+            barcodesMap: {},
+            confirmedBarcodesMap: {},
+            missingBarcodesMap: {}
+          };
         }
-        sData.users[userName] += 1;
+
+        var uObj = sData.users[userName];
+        uObj.qty += itemQty;
+        if (!uObj.barcodesMap[barcode]) {
+          uObj.barcodesMap[barcode] = true;
+          uObj.sku += 1;
+        }
+        
+        if (isPlacementOk) {
+          uObj.placementCorrect = (uObj.placementCorrect || 0) + 1;
+        } else if (isPlacementErr) {
+          uObj.placementIncorrect = (uObj.placementIncorrect || 0) + 1;
+        }
+        
+        if (isConfirmed) {
+          uObj.confirmedQty += itemQty;
+          if (!uObj.confirmedBarcodesMap[barcode]) {
+            uObj.confirmedBarcodesMap[barcode] = true;
+            uObj.confirmedSku += 1;
+          }
+        } else if (isMissing) {
+          uObj.missingQty += itemQty;
+          if (!uObj.missingBarcodesMap[barcode]) {
+            uObj.missingBarcodesMap[barcode] = true;
+            uObj.missingSku += 1;
+          }
+        } else {
+          uObj.confirmedQty += itemQty;
+          if (!uObj.confirmedBarcodesMap[barcode]) {
+            uObj.confirmedBarcodesMap[barcode] = true;
+            uObj.confirmedSku += 1;
+          }
+        }
       }
     }
   }
   
+  try {
+    var jsonStr = JSON.stringify(stats);
+    if (jsonStr.length < 90000) {
+      cache.put(cacheKey, jsonStr, 180);
+    }
+  } catch (cErr) {
+    // Ignore cache write errors
+  }
+
   return stats;
 }
 
-function getGotovaStats(ss) {
+function getGotovaStats(ss, force) {
+  var cache = CacheService.getScriptCache();
+  var cacheKey = "gotova_stats_cache_v1";
+
+  if (!force) {
+    try {
+      var cachedStr = cache.get(cacheKey);
+      if (cachedStr) {
+        return JSON.parse(cachedStr);
+      }
+    } catch (e) {
+      // Ignore cache errors
+    }
+  }
+
   var sheets = ss.getSheets();
   var sheet = null;
   for (var s = 0; s < sheets.length; s++) {
@@ -609,10 +769,21 @@ function getGotovaStats(ss) {
     });
   }
   
-  return {
+  var resObj = {
     success: true,
     monthly: monthlyStats,
     daily: dailyStats
   };
+
+  try {
+    var jsonStr = JSON.stringify(resObj);
+    if (jsonStr.length < 90000) {
+      cache.put(cacheKey, jsonStr, 180);
+    }
+  } catch (cErr) {
+    // Ignore cache write errors
+  }
+
+  return resObj;
 }
 
