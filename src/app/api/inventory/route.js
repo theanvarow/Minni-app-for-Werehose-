@@ -9,6 +9,16 @@ const IS_SERVER_STOPPED = false;
 
 const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL;
 
+let statsMemoryCache = {
+  data: null,
+  timestamp: 0
+};
+
+let gotovaStatsMemoryCache = {
+  data: null,
+  timestamp: 0
+};
+
 export async function GET(request) {
   try {
     if (IS_SERVER_STOPPED) {
@@ -20,6 +30,18 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
+    const action = searchParams.get("action");
+    const isForce = searchParams.get("force") === "true";
+    const now = Date.now();
+
+    // Serve stats from memory cache if fresh (< 45s) and not forced
+    if (action === "stats" && !isForce && statsMemoryCache.data && (now - statsMemoryCache.timestamp < 45000)) {
+      return NextResponse.json(statsMemoryCache.data);
+    }
+
+    if (action === "gotova_stats" && !isForce && gotovaStatsMemoryCache.data && (now - gotovaStatsMemoryCache.timestamp < 45000)) {
+      return NextResponse.json(gotovaStatsMemoryCache.data);
+    }
     
     let targetUrl = GOOGLE_SCRIPT_URL;
     const params = [];
@@ -35,17 +57,30 @@ export async function GET(request) {
       headers: {
         'Accept': 'application/json',
       },
-      // Next.js cache bypass for real-time updates
       cache: 'no-store'
     });
     
     const data = await response.json();
     
-    // Auto-wrap raw stats from Google Apps Script if needed
-    if (searchParams.get("action") === "stats") {
+    // Auto-wrap raw stats from Google Apps Script and update cache
+    if (action === "stats") {
+      let statsPayload = data;
       if (data && typeof data === "object" && !data.hasOwnProperty("success")) {
-        return NextResponse.json({ success: true, stats: data });
+        statsPayload = { success: true, stats: data };
       }
+      statsMemoryCache = {
+        data: statsPayload,
+        timestamp: Date.now()
+      };
+      return NextResponse.json(statsPayload);
+    }
+
+    if (action === "gotova_stats") {
+      gotovaStatsMemoryCache = {
+        data,
+        timestamp: Date.now()
+      };
+      return NextResponse.json(data);
     }
     
     return NextResponse.json(data);
@@ -72,6 +107,10 @@ export async function POST(request) {
     if (!rowIndex || !status || !userName) {
       return NextResponse.json({ success: false, error: "Данные неполные (требуется имя пользователя)" }, { status: 400 });
     }
+
+    // Invalidate stats memory cache on item updates so stats stay accurate
+    statsMemoryCache = { data: null, timestamp: 0 };
+    gotovaStatsMemoryCache = { data: null, timestamp: 0 };
 
     const response = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',

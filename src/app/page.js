@@ -389,17 +389,26 @@ export default function Home() {
     }
   };
 
-  const fetchStats = async () => {
-    setLoadingStats(true);
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchStats();
+    }
+  }, [isLoggedIn]);
+
+  const fetchStats = async (force = false) => {
+    if (!statsData || force) {
+      setLoadingStats(true);
+    }
     setStatsError("");
     try {
-      const res = await fetch(`/api/inventory?action=stats&t=${Date.now()}`);
+      const forceParam = force ? "&force=true" : "";
+      const res = await fetch(`/api/inventory?action=stats${forceParam}&t=${Date.now()}`);
       const data = await res.json();
       if (data.success) {
         if (data.stats) {
           setStatsData(data.stats);
         } else {
-          setStatsError("Пожалуйста, обновите Google Apps Script до последней версии (внедрите код статистики и сделайте New Version Deployment).");
+          setStatsError("Пожалуйста, обновите Google Apps Script до последней версии.");
         }
       } else {
         setStatsError(data.error || "Не удалось загрузить статистику");
@@ -520,17 +529,29 @@ export default function Home() {
                 <p className="text-[10px] text-neutral-400 mt-1">План на день: 600 SKU на каждую смену</p>
               </div>
             </div>
-            <button
-              onClick={() => {
-                setShowStats(false);
-                playSound("click");
-              }}
-              className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition active:scale-95"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  fetchStats(true);
+                  playSound("click");
+                }}
+                className="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white text-[10px] font-bold rounded-lg transition active:scale-95 flex items-center gap-1 border border-neutral-700"
+                title="Обновить данные"
+              >
+                🔄 Обновить
+              </button>
+              <button
+                onClick={() => {
+                  setShowStats(false);
+                  playSound("click");
+                }}
+                className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition active:scale-95"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Quick Navigation Bar between Stats */}
@@ -1111,17 +1132,29 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => {
-                setShowIzlishkaStats(false);
-                playSound("click");
-              }}
-              className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition active:scale-95"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  fetchStats(true);
+                  playSound("click");
+                }}
+                className="px-2 py-1 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold rounded-lg transition active:scale-95 flex items-center gap-1"
+                title="Обновить свежие данные"
+              >
+                🔄 Обновить
+              </button>
+              <button
+                onClick={() => {
+                  setShowIzlishkaStats(false);
+                  playSound("click");
+                }}
+                className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition active:scale-95"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Quick Navigation Bar between Stats */}

@@ -272,7 +272,21 @@ function doPost(e) {
   }
 }
 
-function getStats(ss) {
+function getStats(ss, force) {
+  var cache = CacheService.getScriptCache();
+  var cacheKey = "inventory_stats_cache_v3";
+
+  if (!force) {
+    try {
+      var cachedStr = cache.get(cacheKey);
+      if (cachedStr) {
+        return JSON.parse(cachedStr);
+      }
+    } catch (e) {
+      // Ignore cache errors
+    }
+  }
+
   var sheets = ss.getSheets();
   var stats = {};
   
@@ -540,6 +554,15 @@ function getStats(ss) {
     }
   }
   
+  try {
+    var jsonStr = JSON.stringify(stats);
+    if (jsonStr.length < 90000) {
+      cache.put(cacheKey, jsonStr, 180);
+    }
+  } catch (cErr) {
+    // Ignore cache write errors
+  }
+
   return stats;
 }
 
