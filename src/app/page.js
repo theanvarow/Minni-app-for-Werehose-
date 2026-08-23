@@ -565,17 +565,7 @@ export default function Home() {
             >
               📊 Смены
             </button>
-            <button
-              onClick={() => {
-                setShowStats(false);
-                setShowIzlishkaStats(true);
-                fetchStats();
-                playSound("click");
-              }}
-              className="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
-            >
-              📦 Излишка
-            </button>
+
             <button
               onClick={() => {
                 setShowStats(false);
@@ -879,17 +869,7 @@ export default function Home() {
             >
               📊 Смены
             </button>
-            <button
-              onClick={() => {
-                setShowGotovaStats(false);
-                setShowIzlishkaStats(true);
-                fetchStats();
-                playSound("click");
-              }}
-              className="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
-            >
-              📦 Излишка
-            </button>
+
             <button
               className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm"
             >
@@ -1767,20 +1747,14 @@ export default function Home() {
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    if (activeMode === "izlishka") {
-                      setShowIzlishkaStats(true);
-                    } else {
-                      setShowStats(true);
-                    }
-                    fetchStats();
-                    playSound("click");
-                  }}
-                  className={`px-2.5 py-2.5 bg-neutral-850 hover:bg-neutral-800 border rounded-xl text-xs font-bold transition active:scale-95 flex items-center gap-1 ${
-                    activeMode === "izlishka" ? "text-emerald-400 border-emerald-500/40" : "text-neutral-300 border-neutral-700 hover:text-white"
-                  }`}
-                >
-                  {activeMode === "izlishka" ? "📦 Статистика" : "📊 Статистика"}
-                </button>
+                  setShowStats(true);
+                  fetchStats();
+                  playSound("click");
+                }}
+                className="px-2.5 py-2.5 bg-neutral-850 hover:bg-neutral-800 border border-neutral-700 rounded-xl text-xs font-bold text-neutral-300 hover:text-white transition active:scale-95 flex items-center gap-1"
+              >
+                📊 Статистика
+              </button>
 
                 <button 
                   onClick={() => {
