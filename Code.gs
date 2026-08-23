@@ -463,9 +463,12 @@ function getStats(ss) {
       }
       
       var normPlacement = placementCorrect.toLowerCase();
-      if (normPlacement === "да" || normPlacement === "yes" || normPlacement === "верно") {
+      var isPlacementOk = normPlacement.indexOf("да") !== -1 || normPlacement.indexOf("yes") !== -1 || normPlacement.indexOf("верн") !== -1 || normPlacement === "ok" || normPlacement === "1" || (normStatus.indexOf("подтвержд") !== -1 && (normPlacement === "" || normPlacement === "да"));
+      var isPlacementErr = normPlacement.indexOf("нет") !== -1 || normPlacement.indexOf("no") !== -1 || normPlacement.indexOf("неверн") !== -1 || normPlacement === "0";
+
+      if (isPlacementOk) {
         sData.placementCorrect += 1;
-      } else if (normPlacement === "нет" || normPlacement === "no" || normPlacement === "неверно") {
+      } else if (isPlacementErr) {
         sData.placementIncorrect += 1;
       }
       
@@ -478,6 +481,8 @@ function getStats(ss) {
             confirmedQty: 0,
             missingSku: 0,
             missingQty: 0,
+            placementCorrect: 0,
+            placementIncorrect: 0,
             barcodesMap: {},
             confirmedBarcodesMap: {},
             missingBarcodesMap: {}
@@ -491,6 +496,8 @@ function getStats(ss) {
             confirmedQty: oldVal,
             missingSku: 0,
             missingQty: 0,
+            placementCorrect: 0,
+            placementIncorrect: 0,
             barcodesMap: {},
             confirmedBarcodesMap: {},
             missingBarcodesMap: {}
@@ -502,6 +509,12 @@ function getStats(ss) {
         if (!uObj.barcodesMap[barcode]) {
           uObj.barcodesMap[barcode] = true;
           uObj.sku += 1;
+        }
+        
+        if (isPlacementOk) {
+          uObj.placementCorrect = (uObj.placementCorrect || 0) + 1;
+        } else if (isPlacementErr) {
+          uObj.placementIncorrect = (uObj.placementIncorrect || 0) + 1;
         }
         
         if (isConfirmed) {
