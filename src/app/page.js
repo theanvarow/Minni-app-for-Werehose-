@@ -769,7 +769,7 @@ export default function Home() {
                                                 <div key={u} className="flex justify-between items-center text-neutral-200 py-0.5 text-[9px]">
                                                   <span className="font-bold text-neutral-100 truncate max-w-[65%]" title={u}>{u}</span>
                                                   <span className="font-mono text-amber-400 font-black text-[9px] bg-amber-500/10 px-1.5 py-0.5 rounded">
-                                                    {uQty} шт
+                                                    {uQty} SKU
                                                   </span>
                                                 </div>
                                               );
