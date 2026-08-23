@@ -734,12 +734,29 @@ export default function Home() {
                                         <div className="mt-1.5 border-t border-neutral-850 pt-1.5 flex flex-col gap-1 text-[10px]">
                                           <span className="text-neutral-400 text-[9px] font-extrabold block mb-0.5 uppercase tracking-wider">Сотрудники:</span>
                                           <div className="flex flex-col gap-1 leading-none">
-                                            {Object.keys(users).map((u) => (
-                                              <div key={u} className="flex justify-between items-center text-neutral-200 py-0.5">
-                                                <span className="font-bold text-neutral-100 truncate max-w-[75%]" title={u}>{u}</span>
-                                                <span className="font-mono text-amber-400 font-black text-[9px] bg-amber-500/10 px-1 py-0.5 rounded">{users[u]} шт</span>
-                                              </div>
-                                            ))}
+                                            {Object.keys(users).map((u) => {
+                                              const uVal = users[u];
+                                              const isObj = typeof uVal === "object" && uVal !== null;
+                                              const uSku = isObj ? (uVal.sku || uVal.total || 0) : (uVal || 0);
+                                              const uQty = isObj ? (uVal.qty || uVal.total || 0) : uSku;
+                                              const uConf = isObj ? (uVal.confirmedQty || uVal.confirmed || 0) : uQty;
+                                              const uMiss = isObj ? (uVal.missingQty || uVal.missing || 0) : 0;
+                                              const uPlac = isObj ? (uVal.placementCorrect || 0) : 0;
+                                              
+                                              return (
+                                                <div key={u} className="flex justify-between items-center text-neutral-200 py-0.5 text-[9px]">
+                                                  <span className="font-bold text-neutral-100 truncate max-w-[50%]" title={u}>{u}</span>
+                                                  <div className="flex items-center gap-1 font-mono">
+                                                    <span className="text-emerald-400 font-bold" title="Найдено">✓{uConf}</span>
+                                                    {uMiss > 0 && <span className="text-red-400 font-bold" title="Отсутствует">✗{uMiss}</span>}
+                                                    {uPlac > 0 && <span className="text-amber-300 font-bold" title="Правильное размещение">🎯{uPlac}</span>}
+                                                    <span className="font-mono text-amber-400 font-black bg-amber-500/10 px-1 py-0.5 rounded ml-0.5">
+                                                      {uSku} SKU ({uQty} шт)
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
                                           </div>
                                         </div>
                                       )}
