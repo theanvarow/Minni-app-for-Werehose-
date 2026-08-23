@@ -236,35 +236,22 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
     
-    // Dynamic column finding for doPost writeback
-    var lastCol = Math.max(sheet.getLastColumn(), 12);
-    var headersRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-    var hLower = headersRow.map(function(h) { return String(h).trim().toLowerCase(); });
-    
+    // Fixed column positions (1-indexed for getRange)
     var sLower = sheet.getName().trim().toLowerCase();
     var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
 
-    // Sheet-aware default column positions (1-indexed for getRange):
-    var colStatus = isIzlishkaSheet ? 4 : 6;    // Izlishka = D (4), Shift = F (6)
-    var colPlacement = 7;                       // G (7)
-    var colUser = isIzlishkaSheet ? 5 : 8;     // Izlishka = E (5), Shift = H (8)
-    var colShift = isIzlishkaSheet ? 6 : 9;    // Izlishka = F (6), Shift = I (9)
-    var colDate = isIzlishkaSheet ? 7 : 10;    // Izlishka = G (7), Shift = J (10)
-
-    for (var c = 0; c < hLower.length; c++) {
-      var txt = hLower[c];
-      if (txt.indexOf("статус") !== -1) colStatus = c + 1;
-      if (txt.indexOf("фио") !== -1 || txt.indexOf("fio") !== -1 || txt.indexOf("пользователь") !== -1) colUser = c + 1;
-      if (txt.indexOf("смена") !== -1) colShift = c + 1;
-      if (txt.indexOf("дата") !== -1 || txt.indexOf("время") !== -1) colDate = c + 1;
-      if (txt.indexOf("размещение") !== -1) colPlacement = c + 1;
+    if (isIzlishkaSheet) {
+      sheet.getRange(rowIndex, 4).setValue(status); // Column D (Status)
+      sheet.getRange(rowIndex, 5).setValue(userName); // Column E (FIO)
+      sheet.getRange(rowIndex, 6).setValue(shiftName); // Column F (Shift)
+      sheet.getRange(rowIndex, 7).setValue(timestamp || new Date()); // Column G (Date)
+    } else {
+      sheet.getRange(rowIndex, 6).setValue(status); // Column F (Status)
+      if (placementCorrect) sheet.getRange(rowIndex, 7).setValue(placementCorrect); // Column G (Placement Correct)
+      sheet.getRange(rowIndex, 8).setValue(userName); // Column H (FIO)
+      sheet.getRange(rowIndex, 9).setValue(shiftName); // Column I (Shift)
+      sheet.getRange(rowIndex, 10).setValue(timestamp || new Date()); // Column J (Date)
     }
-
-    sheet.getRange(rowIndex, colStatus).setValue(status);
-    if (placementCorrect) sheet.getRange(rowIndex, colPlacement).setValue(placementCorrect);
-    sheet.getRange(rowIndex, colUser).setValue(userName);
-    sheet.getRange(rowIndex, colShift).setValue(shiftName);
-    sheet.getRange(rowIndex, colDate).setValue(timestamp || new Date());
     
     SpreadsheetApp.flush();
     
