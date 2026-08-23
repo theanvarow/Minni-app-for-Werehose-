@@ -531,11 +531,6 @@ function getStats(ss, force) {
         }
 
         var uObj = sData.users[userName];
-        uObj.qty += itemQty;
-        if (!uObj.barcodesMap[barcode]) {
-          uObj.barcodesMap[barcode] = true;
-          uObj.sku += 1;
-        }
         
         if (isPlacementOk) {
           uObj.placementCorrect = (uObj.placementCorrect || 0) + 1;
@@ -543,7 +538,12 @@ function getStats(ss, force) {
           uObj.placementIncorrect = (uObj.placementIncorrect || 0) + 1;
         }
         
-        if (isConfirmed) {
+        if (isConfirmed || (!isConfirmed && !isMissing)) {
+          uObj.qty += itemQty;
+          if (!uObj.barcodesMap[barcode]) {
+            uObj.barcodesMap[barcode] = true;
+            uObj.sku += 1;
+          }
           uObj.confirmedQty += itemQty;
           if (!uObj.confirmedBarcodesMap[barcode]) {
             uObj.confirmedBarcodesMap[barcode] = true;
@@ -554,12 +554,6 @@ function getStats(ss, force) {
           if (!uObj.missingBarcodesMap[barcode]) {
             uObj.missingBarcodesMap[barcode] = true;
             uObj.missingSku += 1;
-          }
-        } else {
-          uObj.confirmedQty += itemQty;
-          if (!uObj.confirmedBarcodesMap[barcode]) {
-            uObj.confirmedBarcodesMap[barcode] = true;
-            uObj.confirmedSku += 1;
           }
         }
       }

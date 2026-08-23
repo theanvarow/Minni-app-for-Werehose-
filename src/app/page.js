@@ -762,8 +762,8 @@ export default function Home() {
                                             {Object.keys(users).map((u) => {
                                               const uVal = users[u];
                                               const isObj = typeof uVal === "object" && uVal !== null;
-                                              const uSku = isObj ? (uVal.sku || uVal.total || 0) : (uVal || 0);
-                                              const uQty = isObj ? (uVal.qty || uVal.total || 0) : uSku;
+                                              const uSku = isObj ? (uVal.confirmedSku !== undefined ? uVal.confirmedSku : (uVal.sku || 0)) : (uVal || 0);
+                                              const uQty = isObj ? (uVal.confirmedQty !== undefined ? uVal.confirmedQty : (uVal.qty || 0)) : uSku;
                                               const uConf = isObj ? (uVal.confirmedQty || uVal.confirmed || 0) : uQty;
                                               const uMiss = isObj ? (uVal.missingQty || uVal.missing || 0) : 0;
                                               const uPlac = isObj ? (uVal.placementCorrect || 0) : 0;
@@ -1314,8 +1314,8 @@ export default function Home() {
 
                       const userEntries = Object.entries(usersMap).map(([uName, uVal]) => {
                         const isObj = typeof uVal === "object" && uVal !== null;
-                        const uSku = isObj ? (uVal.sku || uVal.total || 0) : (uVal || 0);
-                        const uQty = isObj ? (uVal.qty || uVal.total || 0) : uSku;
+                        const uSku = isObj ? (uVal.confirmedSku !== undefined ? uVal.confirmedSku : (uVal.sku || 0)) : (uVal || 0);
+                        const uQty = isObj ? (uVal.confirmedQty !== undefined ? uVal.confirmedQty : (uVal.qty || 0)) : uSku;
                         return { uName, uSku, uQty };
                       }).sort((a, b) => b.uQty - a.uQty);
 
