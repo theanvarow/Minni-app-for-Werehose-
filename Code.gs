@@ -236,12 +236,31 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
     
-    // Write data back to Google Sheet
-    sheet.getRange(rowIndex, 6).setValue(status); // Column F (Status)
-    sheet.getRange(rowIndex, 7).setValue(placementCorrect); // Column G (Placement Correct)
-    sheet.getRange(rowIndex, 8).setValue(userName); // Column H (FIO)
-    sheet.getRange(rowIndex, 9).setValue(shiftName); // Column I (Shift)
-    sheet.getRange(rowIndex, 10).setValue(timestamp || new Date()); // Column J (Date)
+    // Dynamic column finding for doPost writeback
+    var lastCol = Math.max(sheet.getLastColumn(), 10);
+    var headersRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    var hLower = headersRow.map(function(h) { return String(h).trim().toLowerCase(); });
+    
+    var colStatus = 4; // Default Column D (4)
+    var colPlacement = 7;
+    var colUser = 5; // Default Column E (5)
+    var colShift = 6; // Default Column F (6)
+    var colDate = 7; // Default Column G (7)
+
+    for (var c = 0; c < hLower.length; c++) {
+      var txt = hLower[c];
+      if (txt.indexOf("статус") !== -1) colStatus = c + 1;
+      if (txt.indexOf("фио") !== -1 || txt.indexOf("fio") !== -1) colUser = c + 1;
+      if (txt.indexOf("смена") !== -1) colShift = c + 1;
+      if (txt.indexOf("дата") !== -1 || txt.indexOf("время") !== -1) colDate = c + 1;
+      if (txt.indexOf("размещение") !== -1) colPlacement = c + 1;
+    }
+
+    sheet.getRange(rowIndex, colStatus).setValue(status);
+    if (placementCorrect) sheet.getRange(rowIndex, colPlacement).setValue(placementCorrect);
+    sheet.getRange(rowIndex, colUser).setValue(userName);
+    sheet.getRange(rowIndex, colShift).setValue(shiftName);
+    sheet.getRange(rowIndex, colDate).setValue(timestamp || new Date());
     
     SpreadsheetApp.flush();
     
@@ -285,19 +304,25 @@ function getStats(ss) {
     
     var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
     
-    // Find column indices dynamically
-    var statusIdx = headers.indexOf("статус");
-    var placementIdx = headers.indexOf("размещение верно");
-    var userIdx = headers.indexOf("фио");
-    var dateIdx = headers.indexOf("дата");
-    if (dateIdx === -1) dateIdx = headers.indexOf("время");
-    if (dateIdx === -1) dateIdx = headers.indexOf("timestamp");
-    
-    // Fallbacks
-    if (statusIdx === -1) statusIdx = 5;
+    // Find column indices dynamically with substring matching
+    var statusIdx = -1;
+    var placementIdx = -1;
+    var userIdx = -1;
+    var dateIdx = -1;
+
+    for (var h = 0; h < headers.length; h++) {
+      var hText = headers[h];
+      if (statusIdx === -1 && (hText.indexOf("статус") !== -1 || hText.indexOf("status") !== -1)) statusIdx = h;
+      if (userIdx === -1 && (hText.indexOf("фио") !== -1 || hText.indexOf("fio") !== -1 || hText.indexOf("пользователь") !== -1)) userIdx = h;
+      if (dateIdx === -1 && (hText.indexOf("дата") !== -1 || hText.indexOf("время") !== -1 || hText.indexOf("date") !== -1 || hText.indexOf("timestamp") !== -1)) dateIdx = h;
+      if (placementIdx === -1 && (hText.indexOf("размещение") !== -1 || hText.indexOf("placement") !== -1)) placementIdx = h;
+    }
+
+    // Fallbacks (Matching Sheet layout: D=3: Статус, E=4: ФИО, F=5: Смена, G=6: Дата)
+    if (statusIdx === -1) statusIdx = 3; // Column D (Status)
+    if (userIdx === -1) userIdx = 4; // Column E (FIO)
+    if (dateIdx === -1) dateIdx = 6; // Column G (Date)
     if (placementIdx === -1) placementIdx = 6;
-    if (userIdx === -1) userIdx = 7;
-    if (dateIdx === -1) dateIdx = 9;
     
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
