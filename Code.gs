@@ -274,7 +274,7 @@ function doPost(e) {
 
 function getStats(ss, force) {
   var cache = CacheService.getScriptCache();
-  var cacheKey = "inventory_stats_cache_v10";
+  var cacheKey = "inventory_stats_cache_v11";
 
   if (!force) {
     try {
@@ -382,39 +382,57 @@ function getStats(ss, force) {
           formattedDate = year + "-" + month + "-" + day;
         } else if (rawDate) {
           var dateStr = String(rawDate).trim();
-          if (dateStr.indexOf(".") !== -1) {
-            // e.g. 14.08.2026 or 14.08.2026 11:45:00
-            var parts = dateStr.split(" ")[0].split(".");
+          var datePart = dateStr.split(" ")[0].split("T")[0];
+          
+          if (datePart.indexOf(".") !== -1) {
+            var parts = datePart.split(".");
             if (parts.length === 3) {
-              var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
-              var m = ("0" + parts[1]).slice(-2);
-              var d = ("0" + parts[0]).slice(-2);
-              formattedDate = y + "-" + m + "-" + d;
-            }
-          } else if (dateStr.indexOf("-") !== -1) {
-            // e.g. 2026-08-14 or 2026-08-14 11:45:00 or 2026-08-14T11:45:00
-            var datePart = dateStr.split(" ")[0].split("T")[0];
-            var parts = datePart.split("-");
-            if (parts.length === 3) {
-              var y = parts[0];
-              var m = ("0" + parts[1]).slice(-2);
-              var d = ("0" + parts[2]).slice(-2);
-              formattedDate = y + "-" + m + "-" + d;
-            }
-          } else if (dateStr.indexOf("/") !== -1) {
-            // e.g. 14/08/2026 or 2026/08/14
-            var parts = dateStr.split(" ")[0].split("/");
-            if (parts.length === 3) {
-              if (parts[0].length === 4) {
+              if (parts[0].length === 4) { // YYYY.MM.DD
                 formattedDate = parts[0] + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[2]).slice(-2);
-              } else {
+              } else { // DD.MM.YYYY
                 var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
                 var m = ("0" + parts[1]).slice(-2);
                 var d = ("0" + parts[0]).slice(-2);
                 formattedDate = y + "-" + m + "-" + d;
               }
             }
-          } else {
+          } else if (datePart.indexOf("-") !== -1) {
+            var parts = datePart.split("-");
+            if (parts.length === 3) {
+              if (parts[0].length === 4) { // YYYY-MM-DD
+                formattedDate = parts[0] + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[2]).slice(-2);
+              } else { // DD-MM-YYYY
+                var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+                var m = ("0" + parts[1]).slice(-2);
+                var d = ("0" + parts[0]).slice(-2);
+                formattedDate = y + "-" + m + "-" + d;
+              }
+            }
+          } else if (datePart.indexOf("/") !== -1) {
+            var parts = datePart.split("/");
+            if (parts.length === 3) {
+              if (parts[0].length === 4) { // YYYY/MM/DD
+                formattedDate = parts[0] + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[2]).slice(-2);
+              } else if (parseInt(parts[0], 10) > 12) { // DD/MM/YYYY
+                var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+                var m = ("0" + parts[1]).slice(-2);
+                var d = ("0" + parts[0]).slice(-2);
+                formattedDate = y + "-" + m + "-" + d;
+              } else if (parseInt(parts[1], 10) > 12) { // MM/DD/YYYY
+                var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+                var m = ("0" + parts[0]).slice(-2);
+                var d = ("0" + parts[1]).slice(-2);
+                formattedDate = y + "-" + m + "-" + d;
+              } else { // Fallback DD/MM/YYYY
+                var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+                var m = ("0" + parts[1]).slice(-2);
+                var d = ("0" + parts[0]).slice(-2);
+                formattedDate = y + "-" + m + "-" + d;
+              }
+            }
+          }
+          
+          if (!formattedDate) {
             var dateObj = new Date(dateStr);
             if (!isNaN(dateObj.getTime())) {
               var year = dateObj.getFullYear();
