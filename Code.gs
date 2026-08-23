@@ -237,20 +237,24 @@ function doPost(e) {
     }
     
     // Dynamic column finding for doPost writeback
-    var lastCol = Math.max(sheet.getLastColumn(), 10);
+    var lastCol = Math.max(sheet.getLastColumn(), 12);
     var headersRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
     var hLower = headersRow.map(function(h) { return String(h).trim().toLowerCase(); });
     
-    var colStatus = 4; // Default Column D (4)
-    var colPlacement = 7;
-    var colUser = 5; // Default Column E (5)
-    var colShift = 6; // Default Column F (6)
-    var colDate = 7; // Default Column G (7)
+    var sLower = sheet.getName().trim().toLowerCase();
+    var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
+
+    // Sheet-aware default column positions (1-indexed for getRange):
+    var colStatus = isIzlishkaSheet ? 4 : 6;    // Izlishka = D (4), Shift = F (6)
+    var colPlacement = 7;                       // G (7)
+    var colUser = isIzlishkaSheet ? 5 : 8;     // Izlishka = E (5), Shift = H (8)
+    var colShift = isIzlishkaSheet ? 6 : 9;    // Izlishka = F (6), Shift = I (9)
+    var colDate = isIzlishkaSheet ? 7 : 10;    // Izlishka = G (7), Shift = J (10)
 
     for (var c = 0; c < hLower.length; c++) {
       var txt = hLower[c];
       if (txt.indexOf("статус") !== -1) colStatus = c + 1;
-      if (txt.indexOf("фио") !== -1 || txt.indexOf("fio") !== -1) colUser = c + 1;
+      if (txt.indexOf("фио") !== -1 || txt.indexOf("fio") !== -1 || txt.indexOf("пользователь") !== -1) colUser = c + 1;
       if (txt.indexOf("смена") !== -1) colShift = c + 1;
       if (txt.indexOf("дата") !== -1 || txt.indexOf("время") !== -1) colDate = c + 1;
       if (txt.indexOf("размещение") !== -1) colPlacement = c + 1;
@@ -322,12 +326,14 @@ function getStats(ss) {
       if (qtyIdx === -1 && (hText.indexOf("количест") !== -1 || hText.indexOf("кол-во") !== -1 || hText.indexOf("qty") !== -1 || hText.indexOf("kol-vo") !== -1 || hText.indexOf("кол") !== -1)) qtyIdx = h;
     }
 
-    // Fallbacks (Matching Sheet layout: A=0: Barcode, C=2: Количество, D=3: Статус, E=4: ФИО, F=5: Смена, G=6: Дата)
-    if (barcodeIdx === -1) barcodeIdx = 0; // Column A (Barcode)
-    if (qtyIdx === -1) qtyIdx = 2; // Column C (Quantity)
-    if (statusIdx === -1) statusIdx = 3; // Column D (Status)
-    if (userIdx === -1) userIdx = 4; // Column E (FIO)
-    if (dateIdx === -1) dateIdx = 6; // Column G (Date)
+    var isIzlishkaSheet = (sLower === "излишка" || sLower === "излишки" || sLower === "izlishka");
+
+    // Sheet-aware default fallbacks (0-indexed for array access):
+    if (barcodeIdx === -1) barcodeIdx = 0; // Column A (0)
+    if (qtyIdx === -1) qtyIdx = 2; // Column C (2)
+    if (statusIdx === -1) statusIdx = isIzlishkaSheet ? 3 : 5; // Izlishka = D (3), Shift = F (5)
+    if (userIdx === -1) userIdx = isIzlishkaSheet ? 4 : 7; // Izlishka = E (4), Shift = H (7)
+    if (dateIdx === -1) dateIdx = isIzlishkaSheet ? 6 : 9; // Izlishka = G (6), Shift = J (9)
     if (placementIdx === -1) placementIdx = 6;
     
     for (var i = 1; i < data.length; i++) {
@@ -336,7 +342,14 @@ function getStats(ss) {
       var status = String(row[statusIdx] || "").trim();
       var placementCorrect = String(row[placementIdx] || "").trim();
       var userName = String(row[userIdx] || "").trim();
+      
+      // Multi-column date check: try primary dateIdx, then check columns 9, 10, 6, 7 if empty
       var rawDate = row[dateIdx];
+      if (!rawDate && row[9]) rawDate = row[9];
+      if (!rawDate && row[10]) rawDate = row[10];
+      if (!rawDate && row[6]) rawDate = row[6];
+      if (!rawDate && row[7]) rawDate = row[7];
+
       var itemQty = parseInt(row[qtyIdx], 10);
       if (isNaN(itemQty) || itemQty <= 0) itemQty = 1;
       
