@@ -496,25 +496,34 @@ export default function Home() {
     const formattedTimestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
 
     try {
-      await fetch("/api/inventory", {
+      const payload = {
+        rowIndex: currentItem.rowIndex, 
+        status, 
+        userName, 
+        shift: `${shift} смена`, 
+        shiftName: `${shift} смена`, 
+        placementCorrect,
+        timestamp: formattedTimestamp,
+        mode: activeMode,
+        floor: selectedFloor
+      };
+
+      // 1. Primary path: Vercel server-side proxy
+      const proxyPromise = fetch("/api/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          rowIndex: currentItem.rowIndex, 
-          status, 
-          userName, 
-          shift: `${shift} смена`, 
-          shiftName: `${shift} смена`, 
-          placementCorrect,
-          timestamp: formattedTimestamp,
-          mode: activeMode,
-          floor: selectedFloor
-        }),
+        body: JSON.stringify(payload),
       });
-      // We don't need to await or do anything here. If it succeeds, great.
+
+      // 2. Secondary path: Direct browser-to-Google-Script fallback
+      const scriptUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbyrxP7EsoN0tdtId21fXM8DhR2CIlYT65GYn2cXLg1Z1AHMEoxC5N2zycQahWYaT1Mj1g/exec";
+      const directUrl = `${scriptUrl}?action=update&rowIndex=${payload.rowIndex}&status=${encodeURIComponent(payload.status)}&userName=${encodeURIComponent(payload.userName)}&shift=${encodeURIComponent(payload.shift)}&shiftName=${encodeURIComponent(payload.shiftName)}&placementCorrect=${encodeURIComponent(payload.placementCorrect)}&timestamp=${encodeURIComponent(payload.timestamp)}&mode=${encodeURIComponent(payload.mode)}&floor=${encodeURIComponent(payload.floor)}`;
+      
+      fetch(directUrl, { mode: 'no-cors' }).catch(() => {});
+
+      await proxyPromise;
     } catch (err) {
       console.error("Failed to update item:", err);
-      // Optional: Add it back to the queue if it fails, or show a small toast error
     }
   };
 
