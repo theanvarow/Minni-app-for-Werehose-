@@ -566,7 +566,21 @@ function getStats(ss, force) {
   return stats;
 }
 
-function getGotovaStats(ss) {
+function getGotovaStats(ss, force) {
+  var cache = CacheService.getScriptCache();
+  var cacheKey = "gotova_stats_cache_v1";
+
+  if (!force) {
+    try {
+      var cachedStr = cache.get(cacheKey);
+      if (cachedStr) {
+        return JSON.parse(cachedStr);
+      }
+    } catch (e) {
+      // Ignore cache errors
+    }
+  }
+
   var sheets = ss.getSheets();
   var sheet = null;
   for (var s = 0; s < sheets.length; s++) {
@@ -755,10 +769,21 @@ function getGotovaStats(ss) {
     });
   }
   
-  return {
+  var resObj = {
     success: true,
     monthly: monthlyStats,
     daily: dailyStats
   };
+
+  try {
+    var jsonStr = JSON.stringify(resObj);
+    if (jsonStr.length < 90000) {
+      cache.put(cacheKey, jsonStr, 180);
+    }
+  } catch (cErr) {
+    // Ignore cache write errors
+  }
+
+  return resObj;
 }
 
