@@ -123,7 +123,7 @@ let cachedGrafanaStore = {};
 
 async function fetchStatsWithTimeout(googleUrl, filterMode, filterShift) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4500); // 4.5s strict timeout (well below 10s limits)
+  const timeoutId = setTimeout(() => controller.abort(), 8500); // 8.5s timeout for Google redirects
   try {
     const statsRes = await fetch(`${googleUrl}?action=stats&mode=${encodeURIComponent(filterMode || '')}`, {
       signal: controller.signal,
