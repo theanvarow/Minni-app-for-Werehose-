@@ -157,7 +157,7 @@ export async function GET(request) {
       }
 
       try {
-        const statsRes = await fetch(`${GOOGLE_SCRIPT_URL}?action=stats`, { cache: 'no-store' });
+        const statsRes = await fetch(`${GOOGLE_SCRIPT_URL}?action=stats&mode=${encodeURIComponent(filterMode || '')}`, { cache: 'no-store' });
         const rawStats = await statsRes.json();
         const grafanaPayload = transformStatsToGrafana(rawStats, filterMode, filterShift);
 

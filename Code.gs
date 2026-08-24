@@ -268,7 +268,7 @@ function doPost(e) {
   }
 }
 
-function getStats(ss) {
+function getStats(ss, targetMode) {
   var sheets = ss.getSheets();
   var stats = {};
   
@@ -279,6 +279,11 @@ function getStats(ss) {
     
     // Ignore non-shift sheets except we process shift sheets
     if (sLower.indexOf("готова") !== -1 || sLower.indexOf("gotova") !== -1 || sLower.indexOf("отчет") !== -1 || sLower.indexOf("report") !== -1) {
+      continue;
+    }
+
+    // Fast filter for izlishka mode
+    if (targetMode === "izlishka" && sLower.indexOf("излишка") === -1 && sLower.indexOf("izlishka") === -1) {
       continue;
     }
     
@@ -669,8 +674,8 @@ function getGotovaStats(ss) {
   };
 }
 
-function getGrafanaStats(ss) {
-  var rawStats = getStats(ss);
+function getGrafanaStats(ss, mode) {
+  var rawStats = getStats(ss, mode);
   var employeeList = [];
   var shiftList = [];
   var timeSeriesList = [];
