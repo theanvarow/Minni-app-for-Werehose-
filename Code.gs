@@ -8,19 +8,13 @@ function doGet(e) {
   
   // If stats action is requested
   if (action === 'stats') {
-    return ContentService.createTextOutput(JSON.stringify(getStats(ss, mode)))
+    return ContentService.createTextOutput(JSON.stringify(getStats(ss)))
       .setMimeType(ContentService.MimeType.JSON);
   }
   
   // If gotova stats action is requested
   if (action === 'gotova_stats') {
     return ContentService.createTextOutput(JSON.stringify(getGotovaStats(ss)))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  // If grafana stats action is requested
-  if (action === 'grafana') {
-    return ContentService.createTextOutput(JSON.stringify(getGrafanaStats(ss, mode)))
       .setMimeType(ContentService.MimeType.JSON);
   }
   
@@ -71,27 +65,17 @@ function doGet(e) {
   var sheet = ss.getSheetByName(targetSheetName);
   if (!sheet) {
     var sheets = ss.getSheets();
-    var targetLower = targetSheetName.toLowerCase();
     for (var s = 0; s < sheets.length; s++) {
       var sName = sheets[s].getName().trim().toLowerCase();
-      if (sName === targetLower || (isSgt && sName.indexOf("сгт") !== -1) || sName.indexOf(targetLower) !== -1 || targetLower.indexOf(sName) !== -1) {
+      if (sName === targetSheetName.toLowerCase() || (isSgt && (sName === "сгт" || sName === "sgt" || sName.indexOf("сгт") !== -1))) {
         sheet = sheets[s];
         break;
       }
     }
   }
   if (!sheet) {
-    var allSheets = ss.getSheets();
-    if (allSheets.length > 0) {
-      sheet = allSheets[0];
-    }
-  }
-  if (!sheet) {
-    return ContentService.createTextOutput(JSON.stringify({ 
-      success: true, 
-      uncompletedItems: [],
-      message: "Лист '" + targetSheetName + "' не найден" 
-    })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Лист '" + targetSheetName + "' не найден" }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
   
   var userName = e.parameter.userName || "";
@@ -278,7 +262,7 @@ function doPost(e) {
   }
 }
 
-function getStats(ss, targetMode) {
+function getStats(ss) {
   var sheets = ss.getSheets();
   var stats = {};
   
@@ -289,11 +273,6 @@ function getStats(ss, targetMode) {
     
     // Ignore non-shift sheets except we process shift sheets
     if (sLower.indexOf("готова") !== -1 || sLower.indexOf("gotova") !== -1 || sLower.indexOf("отчет") !== -1 || sLower.indexOf("report") !== -1) {
-      continue;
-    }
-
-    // Fast filter for izlishka mode
-    if (targetMode === "izlishka" && sLower.indexOf("излишка") === -1 && sLower.indexOf("izlishka") === -1) {
       continue;
     }
     
@@ -310,12 +289,6 @@ function getStats(ss, targetMode) {
     if (dateIdx === -1) dateIdx = headers.indexOf("время");
     if (dateIdx === -1) dateIdx = headers.indexOf("timestamp");
     
-    var qtyIdx = headers.indexOf("кол-во");
-    if (qtyIdx === -1) qtyIdx = headers.indexOf("количество");
-    if (qtyIdx === -1) qtyIdx = headers.indexOf("колво");
-    if (qtyIdx === -1) qtyIdx = headers.indexOf("кол");
-    if (qtyIdx === -1 && (sLower === "излишка" || sLower === "izlishka")) qtyIdx = 2;
-    
     // Fallbacks
     if (statusIdx === -1) statusIdx = 5;
     if (placementIdx === -1) placementIdx = 6;
@@ -329,14 +302,6 @@ function getStats(ss, targetMode) {
       var userName = String(row[userIdx] || "").trim();
       var rawDate = row[dateIdx];
       
-      var itemQty = 1;
-      if (qtyIdx !== -1 && row[qtyIdx] !== undefined && row[qtyIdx] !== "") {
-        var parsedQty = parseFloat(String(row[qtyIdx]).replace(",", "."));
-        if (!isNaN(parsedQty) && parsedQty > 0) {
-          itemQty = parsedQty;
-        }
-      }
-      
       // If status is empty, it means this item has not been audited yet
       if (!status || status === "") continue;
       
@@ -344,7 +309,10 @@ function getStats(ss, targetMode) {
       var formattedDate = "";
       try {
         if (rawDate instanceof Date) {
-          formattedDate = Utilities.formatDate(rawDate, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+          var year = rawDate.getFullYear();
+          var month = ("0" + (rawDate.getMonth() + 1)).slice(-2);
+          var day = ("0" + rawDate.getDate()).slice(-2);
+          formattedDate = year + "-" + month + "-" + day;
         } else if (rawDate) {
           var dateStr = String(rawDate).trim();
           if (dateStr.indexOf(".") !== -1) {
@@ -382,7 +350,10 @@ function getStats(ss, targetMode) {
           } else {
             var dateObj = new Date(dateStr);
             if (!isNaN(dateObj.getTime())) {
-              formattedDate = Utilities.formatDate(dateObj, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+              var year = dateObj.getFullYear();
+              var month = ("0" + (dateObj.getMonth() + 1)).slice(-2);
+              var day = ("0" + dateObj.getDate()).slice(-2);
+              formattedDate = year + "-" + month + "-" + day;
             }
           }
         }
@@ -390,43 +361,13 @@ function getStats(ss, targetMode) {
         // Ignore date parse errors
       }
       
-      // If item has status but timestamp was not in dateIdx column, search all columns in row
+      // Fallback: If item has status but timestamp is missing/unparseable, fallback to today's date
       if (!formattedDate) {
-        for (var c = row.length - 1; c >= 0; c--) {
-          var val = row[c];
-          if (!val) continue;
-          if (val instanceof Date) {
-            try {
-              formattedDate = Utilities.formatDate(val, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
-              if (formattedDate) break;
-            } catch (e) {}
-          } else {
-            var valStr = String(val).trim();
-            if (valStr.match(/^\d{4}-\d{2}-\d{2}/) || valStr.match(/^\d{1,2}\.\d{1,2}\.\d{2,4}/)) {
-              var isDot = valStr.indexOf(".") !== -1;
-              var parts = valStr.split(" ")[0].split(isDot ? "." : "-");
-              if (parts.length === 3) {
-                if (parts[0].length === 4) {
-                  formattedDate = parts[0] + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[2]).slice(-2);
-                } else {
-                  var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
-                  formattedDate = y + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[0]).slice(-2);
-                }
-                if (formattedDate) break;
-              }
-            }
-          }
-        }
-      }
-      
-      // Fallback for Izlishka active scans if no date column present in row
-      if (!formattedDate && (sLower === "излишка" || sLower === "izlishka")) {
-        var todayObj = new Date();
-        formattedDate = Utilities.formatDate(todayObj, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
-      }
-      
-      if (!formattedDate) {
-        continue;
+        var now = new Date();
+        var yNow = now.getFullYear();
+        var mNow = ("0" + (now.getMonth() + 1)).slice(-2);
+        var dNow = ("0" + now.getDate()).slice(-2);
+        formattedDate = yNow + "-" + mNow + "-" + dNow;
       }
       
       if (!stats[formattedDate]) {
@@ -436,11 +377,8 @@ function getStats(ss, targetMode) {
       if (!stats[formattedDate][sheetName]) {
         stats[formattedDate][sheetName] = {
           total: 0,
-          totalQty: 0,
           confirmed: 0,
-          confirmedQty: 0,
           missing: 0,
-          missingQty: 0,
           placementCorrect: 0,
           placementIncorrect: 0,
           users: {}
@@ -449,7 +387,6 @@ function getStats(ss, targetMode) {
       
       var sData = stats[formattedDate][sheetName];
       sData.total += 1;
-      sData.totalQty += itemQty;
       
       var normStatus = status.toLowerCase();
       var isConfirmed = normStatus.indexOf("подтвержд") !== -1 || normStatus.indexOf("собр") !== -1 || normStatus === "да" || normStatus.indexOf("готово") !== -1 || normStatus.indexOf("выполн") !== -1 || normStatus.indexOf("найд") !== -1 || normStatus === "ok";
@@ -457,10 +394,11 @@ function getStats(ss, targetMode) {
 
       if (isConfirmed) {
         sData.confirmed += 1;
-        sData.confirmedQty += itemQty;
       } else if (isMissing) {
         sData.missing += 1;
-        sData.missingQty += itemQty;
+      } else {
+        // Any other non-empty status counts towards confirmed
+        sData.confirmed += 1;
       }
       
       var normPlacement = placementCorrect.toLowerCase();
@@ -472,15 +410,9 @@ function getStats(ss, targetMode) {
       
       if (userName) {
         if (!sData.users[userName]) {
-          sData.users[userName] = { sku: 0, qty: 0 };
+          sData.users[userName] = 0;
         }
-        if (typeof sData.users[userName] === "number") {
-          sData.users[userName] = { sku: sData.users[userName], qty: sData.users[userName] };
-        }
-        sData.users[userName].sku += 1;
-        if (isConfirmed) {
-          sData.users[userName].qty += itemQty;
-        }
+        sData.users[userName] += 1;
       }
     }
   }
@@ -681,89 +613,6 @@ function getGotovaStats(ss) {
     success: true,
     monthly: monthlyStats,
     daily: dailyStats
-  };
-}
-
-function getGrafanaStats(ss, mode) {
-  var rawStats = getStats(ss, mode);
-  var employeeList = [];
-  var shiftList = [];
-  var timeSeriesList = [];
-  var grandTotal = 0;
-  var grandConfirmed = 0;
-  var grandMissing = 0;
-
-  var dateKeys = Object.keys(rawStats).sort();
-
-  dateKeys.forEach(function(dateStr) {
-    var dateData = rawStats[dateStr];
-    var dayConfirmed = 0;
-    var dayMissing = 0;
-    var dayTotal = 0;
-
-    Object.keys(dateData).forEach(function(shiftName) {
-      var sData = dateData[shiftName];
-      dayConfirmed += sData.confirmed;
-      dayMissing += sData.missing;
-      dayTotal += sData.total;
-
-      grandConfirmed += sData.confirmed;
-      grandMissing += sData.missing;
-      grandTotal += sData.total;
-
-      var accuracy = sData.total > 0 ? Math.round((sData.confirmed / sData.total) * 100) : 100;
-      shiftList.push({
-        date: dateStr,
-        shift: shiftName,
-        confirmed: sData.confirmed,
-        kolichestvo: sData.confirmedQty || sData.confirmed,
-        missing: sData.missing,
-        missing_kolichestvo: sData.missingQty || sData.missing,
-        total: sData.total,
-        total_kolichestvo: sData.totalQty || sData.total,
-        accuracy_percent: accuracy
-      });
-
-      if (sData.users) {
-        Object.keys(sData.users).forEach(function(userName) {
-          var val = sData.users[userName];
-          var skuCount = typeof val === "number" ? val : (val.sku || 0);
-          var qtyCount = typeof val === "number" ? val : (val.qty || val.sku || 0);
-          employeeList.push({
-            date: dateStr,
-            shift: shiftName,
-            employee: userName,
-            sobrano: skuCount,
-            kolichestvo: qtyCount,
-            scans: skuCount
-          });
-        });
-      }
-    });
-
-    var ts = new Date(dateStr).getTime();
-    timeSeriesList.push({
-      timestamp: isNaN(ts) ? Date.now() : ts,
-      date: dateStr,
-      confirmed: dayConfirmed,
-      missing: dayMissing,
-      total: dayTotal
-    });
-  });
-
-  var overallAccuracy = grandTotal > 0 ? Math.round((grandConfirmed / grandTotal) * 100) : 100;
-
-  return {
-    success: true,
-    metrics: {
-      total_scans: grandTotal,
-      confirmed: grandConfirmed,
-      missing: grandMissing,
-      overall_accuracy_percent: overallAccuracy
-    },
-    employees: employeeList,
-    shifts: shiftList,
-    timeseries: timeSeriesList
   };
 }
 
