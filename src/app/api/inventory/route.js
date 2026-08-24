@@ -229,13 +229,22 @@ export async function GET(request) {
       clearTimeout(timeoutId);
       const data = await response.json();
       
-      if (searchParams.get("action") === "stats" && data && typeof data === "object") {
-        const statsPayload = data.stats || data;
-        return NextResponse.json({ success: true, stats: statsPayload }, { headers: corsHeaders });
+      if (searchParams.get("action") === "stats") {
+        if (data && typeof data === "object") {
+          const statsPayload = data.stats || data;
+          if (Object.keys(statsPayload).length > 0) {
+            cachedGrafanaStore["raw_stats"] = statsPayload;
+          }
+          return NextResponse.json({ success: true, stats: statsPayload }, { headers: corsHeaders });
+        }
       }
 
       return NextResponse.json(data, { headers: corsHeaders });
     } catch (fetchErr) {
+      if (searchParams.get("action") === "stats") {
+        const fallbackStats = cachedGrafanaStore["raw_stats"] || {};
+        return NextResponse.json({ success: true, stats: fallbackStats }, { headers: corsHeaders });
+      }
       return NextResponse.json({ 
         success: true, 
         uncompletedItems: [], 
