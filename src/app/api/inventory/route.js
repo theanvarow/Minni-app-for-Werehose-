@@ -119,6 +119,9 @@ function transformStatsToGrafana(rawStats, filterMode, filterShift) {
   };
 }
 
+let cachedGrafanaStore = {};
+const CACHE_TTL_MS = 60 * 1000; // Cache for 60 seconds
+
 export async function GET(request) {
   try {
     if (IS_SERVER_STOPPED) {
@@ -132,26 +135,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const filterMode = searchParams.get("mode");
     const filterShift = searchParams.get("shift");
-    
-    let targetUrl = GOOGLE_SCRIPT_URL;
-    const params = [];
-    searchParams.forEach((value, key) => {
-      params.push(`${key}=${encodeURIComponent(value)}`);
-    });
-    if (params.length > 0) {
-      targetUrl += (targetUrl.includes('?') ? '&' : '?') + params.join('&');
-    }
-
-    const response = await fetch(targetUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-      // Next.js cache bypass for real-time updates
-      cache: 'no-store'
-    });
-    
-    const data = await response.json();
+    const type = searchParams.get("type");
     
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
@@ -159,13 +143,25 @@ export async function GET(request) {
       'Access-Control-Allow-Headers': 'Content-Type',
     };
 
-    // Auto-handle Grafana format with fallback to action=stats transform
+    // Auto-handle Grafana format with instant caching (prevents Grafana Cloud 10s timeout)
     if (searchParams.get("action") === "grafana") {
-      const type = searchParams.get("type");
+      const cacheKey = `${filterMode || ''}_${filterShift || ''}`;
+      const now = Date.now();
+
+      // Return fast cached data if fresh (less than 60s)
+      if (cachedGrafanaStore[cacheKey] && (now - cachedGrafanaStore[cacheKey].time < CACHE_TTL_MS)) {
+        const payload = cachedGrafanaStore[cacheKey].data;
+        if (type === "shifts") return NextResponse.json(payload.shifts, { headers: corsHeaders });
+        if (type === "employees") return NextResponse.json(payload.employees, { headers: corsHeaders });
+        return NextResponse.json(payload, { headers: corsHeaders });
+      }
+
       try {
         const statsRes = await fetch(`${GOOGLE_SCRIPT_URL}?action=stats`, { cache: 'no-store' });
         const rawStats = await statsRes.json();
         const grafanaPayload = transformStatsToGrafana(rawStats, filterMode, filterShift);
+
+        cachedGrafanaStore[cacheKey] = { time: Date.now(), data: grafanaPayload };
 
         if (type === "shifts") {
           return NextResponse.json(grafanaPayload.shifts, { headers: corsHeaders });
@@ -176,16 +172,33 @@ export async function GET(request) {
 
         return NextResponse.json(grafanaPayload, { headers: corsHeaders });
       } catch (err) {
-        if (data && data.metrics) {
-          if (type === "shifts" && data.shifts) return NextResponse.json(data.shifts, { headers: corsHeaders });
-          if (type === "employees" && data.employees) return NextResponse.json(data.employees, { headers: corsHeaders });
-          return NextResponse.json(data, { headers: corsHeaders });
+        if (cachedGrafanaStore[cacheKey]) {
+          const payload = cachedGrafanaStore[cacheKey].data;
+          if (type === "shifts") return NextResponse.json(payload.shifts, { headers: corsHeaders });
+          if (type === "employees") return NextResponse.json(payload.employees, { headers: corsHeaders });
+          return NextResponse.json(payload, { headers: corsHeaders });
         }
       }
     }
     
     // Auto-wrap raw stats from Google Apps Script if needed
     if (searchParams.get("action") === "stats") {
+      let targetUrl = GOOGLE_SCRIPT_URL;
+      const params = [];
+      searchParams.forEach((value, key) => {
+        params.push(`${key}=${encodeURIComponent(value)}`);
+      });
+      if (params.length > 0) {
+        targetUrl += (targetUrl.includes('?') ? '&' : '?') + params.join('&');
+      }
+
+      const response = await fetch(targetUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store'
+      });
+      const data = await response.json();
+      
       if (data && typeof data === "object" && !data.hasOwnProperty("success")) {
         return NextResponse.json({ success: true, stats: data }, { headers: corsHeaders });
       }
