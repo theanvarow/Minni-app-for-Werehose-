@@ -295,6 +295,12 @@ function getStats(ss) {
     if (dateIdx === -1) dateIdx = headers.indexOf("время");
     if (dateIdx === -1) dateIdx = headers.indexOf("timestamp");
     
+    var qtyIdx = headers.indexOf("кол-во");
+    if (qtyIdx === -1) qtyIdx = headers.indexOf("количество");
+    if (qtyIdx === -1) qtyIdx = headers.indexOf("колво");
+    if (qtyIdx === -1) qtyIdx = headers.indexOf("кол");
+    if (qtyIdx === -1 && (sLower === "излишка" || sLower === "izlishka")) qtyIdx = 2;
+    
     // Fallbacks
     if (statusIdx === -1) statusIdx = 5;
     if (placementIdx === -1) placementIdx = 6;
@@ -307,6 +313,14 @@ function getStats(ss) {
       var placementCorrect = String(row[placementIdx] || "").trim();
       var userName = String(row[userIdx] || "").trim();
       var rawDate = row[dateIdx];
+      
+      var itemQty = 1;
+      if (qtyIdx !== -1 && row[qtyIdx] !== undefined && row[qtyIdx] !== "") {
+        var parsedQty = parseFloat(String(row[qtyIdx]).replace(",", "."));
+        if (!isNaN(parsedQty) && parsedQty > 0) {
+          itemQty = parsedQty;
+        }
+      }
       
       // If status is empty, it means this item has not been audited yet
       if (!status || status === "") continue;
@@ -374,6 +388,7 @@ function getStats(ss) {
         stats[formattedDate][sheetName] = {
           total: 0,
           confirmed: 0,
+          confirmedQty: 0,
           missing: 0,
           placementCorrect: 0,
           placementIncorrect: 0,
@@ -390,6 +405,7 @@ function getStats(ss) {
 
       if (isConfirmed) {
         sData.confirmed += 1;
+        sData.confirmedQty += itemQty;
       } else if (isMissing) {
         sData.missing += 1;
       }
@@ -403,9 +419,15 @@ function getStats(ss) {
       
       if (userName) {
         if (!sData.users[userName]) {
-          sData.users[userName] = 0;
+          sData.users[userName] = { sku: 0, qty: 0 };
         }
-        sData.users[userName] += 1;
+        if (typeof sData.users[userName] === "number") {
+          sData.users[userName] = { sku: sData.users[userName], qty: sData.users[userName] };
+        }
+        sData.users[userName].sku += 1;
+        if (isConfirmed) {
+          sData.users[userName].qty += itemQty;
+        }
       }
     }
   }
@@ -641,6 +663,7 @@ function getGrafanaStats(ss) {
         date: dateStr,
         shift: shiftName,
         confirmed: sData.confirmed,
+        kolichestvo: sData.confirmedQty || sData.confirmed,
         missing: sData.missing,
         total: sData.total,
         accuracy_percent: accuracy
@@ -648,12 +671,16 @@ function getGrafanaStats(ss) {
 
       if (sData.users) {
         Object.keys(sData.users).forEach(function(userName) {
-          var count = sData.users[userName];
+          var val = sData.users[userName];
+          var skuCount = typeof val === "number" ? val : (val.sku || 0);
+          var qtyCount = typeof val === "number" ? val : (val.qty || val.sku || 0);
           employeeList.push({
             date: dateStr,
             shift: shiftName,
             employee: userName,
-            scans: count
+            sobrano: skuCount,
+            kolichestvo: qtyCount,
+            scans: skuCount
           });
         });
       }

@@ -46,6 +46,7 @@ function transformStatsToGrafana(rawStats, filterMode, filterShift) {
         const sData = dateData[shiftName];
         if (!sData) return;
         const confirmed = sData.confirmed || 0;
+        const confirmedQty = sData.confirmedQty || sData.kolichestvo || confirmed;
         const missing = sData.missing || 0;
         const total = sData.total || (confirmed + missing);
 
@@ -62,6 +63,7 @@ function transformStatsToGrafana(rawStats, filterMode, filterShift) {
           date: dateStr,
           shift: shiftName,
           confirmed,
+          kolichestvo: confirmedQty,
           missing,
           total,
           accuracy_percent: accuracy
@@ -70,13 +72,15 @@ function transformStatsToGrafana(rawStats, filterMode, filterShift) {
         if (sData.users && typeof sData.users === "object") {
           Object.keys(sData.users).forEach(userName => {
             const val = sData.users[userName];
-            const count = typeof val === "number" ? val : (val?.confirmed || val?.total || 0);
+            const skuCount = typeof val === "number" ? val : (val?.sku || val?.confirmed || val?.total || 0);
+            const qtyCount = typeof val === "number" ? val : (val?.qty || val?.kolichestvo || skuCount);
             employees.push({
               date: dateStr,
               shift: shiftName,
               employee: userName,
-              sobrano: count,
-              scans: count
+              sobrano: skuCount,
+              kolichestvo: qtyCount,
+              scans: skuCount
             });
           });
         }
