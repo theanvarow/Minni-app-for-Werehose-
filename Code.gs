@@ -375,7 +375,41 @@ function getStats(ss) {
         // Ignore date parse errors
       }
       
-      // If item has status but timestamp is missing/unparseable, skip it
+      // If item has status but timestamp was not in dateIdx column, search all columns in row
+      if (!formattedDate) {
+        for (var c = row.length - 1; c >= 0; c--) {
+          var val = row[c];
+          if (!val) continue;
+          if (val instanceof Date) {
+            try {
+              formattedDate = Utilities.formatDate(val, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+              if (formattedDate) break;
+            } catch (e) {}
+          } else {
+            var valStr = String(val).trim();
+            if (valStr.match(/^\d{4}-\d{2}-\d{2}/) || valStr.match(/^\d{1,2}\.\d{1,2}\.\d{2,4}/)) {
+              var isDot = valStr.indexOf(".") !== -1;
+              var parts = valStr.split(" ")[0].split(isDot ? "." : "-");
+              if (parts.length === 3) {
+                if (parts[0].length === 4) {
+                  formattedDate = parts[0] + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[2]).slice(-2);
+                } else {
+                  var y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+                  formattedDate = y + "-" + ("0" + parts[1]).slice(-2) + "-" + ("0" + parts[0]).slice(-2);
+                }
+                if (formattedDate) break;
+              }
+            }
+          }
+        }
+      }
+      
+      // Fallback for Izlishka active scans if no date column present in row
+      if (!formattedDate && (sLower === "излишка" || sLower === "izlishka")) {
+        var todayObj = new Date();
+        formattedDate = Utilities.formatDate(todayObj, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+      }
+      
       if (!formattedDate) {
         continue;
       }
