@@ -315,10 +315,7 @@ function getStats(ss) {
       var formattedDate = "";
       try {
         if (rawDate instanceof Date) {
-          var year = rawDate.getFullYear();
-          var month = ("0" + (rawDate.getMonth() + 1)).slice(-2);
-          var day = ("0" + rawDate.getDate()).slice(-2);
-          formattedDate = year + "-" + month + "-" + day;
+          formattedDate = Utilities.formatDate(rawDate, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
         } else if (rawDate) {
           var dateStr = String(rawDate).trim();
           if (dateStr.indexOf(".") !== -1) {
@@ -356,10 +353,7 @@ function getStats(ss) {
           } else {
             var dateObj = new Date(dateStr);
             if (!isNaN(dateObj.getTime())) {
-              var year = dateObj.getFullYear();
-              var month = ("0" + (dateObj.getMonth() + 1)).slice(-2);
-              var day = ("0" + dateObj.getDate()).slice(-2);
-              formattedDate = year + "-" + month + "-" + day;
+              formattedDate = Utilities.formatDate(dateObj, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
             }
           }
         }
@@ -367,7 +361,7 @@ function getStats(ss) {
         // Ignore date parse errors
       }
       
-      // If item has status but timestamp is missing/unparseable, skip it (do not dump into today)
+      // If item has status but timestamp is missing/unparseable, skip it
       if (!formattedDate) {
         continue;
       }
@@ -398,9 +392,6 @@ function getStats(ss) {
         sData.confirmed += 1;
       } else if (isMissing) {
         sData.missing += 1;
-      } else {
-        // Any other non-empty status counts towards confirmed
-        sData.confirmed += 1;
       }
       
       var normPlacement = placementCorrect.toLowerCase();
