@@ -120,7 +120,23 @@ function transformStatsToGrafana(rawStats, filterMode, filterShift) {
 }
 
 let cachedGrafanaStore = {};
-const CACHE_TTL_MS = 60 * 1000; // Cache for 60 seconds
+
+async function fetchStatsWithTimeout(googleUrl, filterMode, filterShift) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4500); // 4.5s strict timeout (well below 10s limits)
+  try {
+    const statsRes = await fetch(`${googleUrl}?action=stats&mode=${encodeURIComponent(filterMode || '')}`, {
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+    clearTimeout(timeoutId);
+    const rawStats = await statsRes.json();
+    return transformStatsToGrafana(rawStats, filterMode, filterShift);
+  } catch (err) {
+    clearTimeout(timeoutId);
+    return null;
+  }
+}
 
 export async function GET(request) {
   try {
@@ -143,42 +159,52 @@ export async function GET(request) {
       'Access-Control-Allow-Headers': 'Content-Type',
     };
 
-    // Auto-handle Grafana format with instant caching (prevents Grafana Cloud 10s timeout)
+    // Auto-handle Grafana format with instant background SWR caching
     if (searchParams.get("action") === "grafana") {
       const cacheKey = `${filterMode || ''}_${filterShift || ''}`;
       const now = Date.now();
+      const existing = cachedGrafanaStore[cacheKey];
 
-      // Return fast cached data if fresh (less than 60s)
-      if (cachedGrafanaStore[cacheKey] && (now - cachedGrafanaStore[cacheKey].time < CACHE_TTL_MS)) {
-        const payload = cachedGrafanaStore[cacheKey].data;
+      // Instant response if cache exists (< 60s)
+      if (existing && (now - existing.time < 60000)) {
+        const payload = existing.data;
         if (type === "shifts") return NextResponse.json(payload.shifts, { headers: corsHeaders });
         if (type === "employees") return NextResponse.json(payload.employees, { headers: corsHeaders });
         return NextResponse.json(payload, { headers: corsHeaders });
       }
 
-      try {
-        const statsRes = await fetch(`${GOOGLE_SCRIPT_URL}?action=stats&mode=${encodeURIComponent(filterMode || '')}`, { cache: 'no-store' });
-        const rawStats = await statsRes.json();
-        const grafanaPayload = transformStatsToGrafana(rawStats, filterMode, filterShift);
+      // If cache exists but stale, serve stale immediately and trigger background update
+      if (existing) {
+        fetchStatsWithTimeout(GOOGLE_SCRIPT_URL, filterMode, filterShift).then(fresh => {
+          if (fresh) cachedGrafanaStore[cacheKey] = { time: Date.now(), data: fresh };
+        }).catch(() => {});
 
-        cachedGrafanaStore[cacheKey] = { time: Date.now(), data: grafanaPayload };
-
-        if (type === "shifts") {
-          return NextResponse.json(grafanaPayload.shifts, { headers: corsHeaders });
-        }
-        if (type === "employees") {
-          return NextResponse.json(grafanaPayload.employees, { headers: corsHeaders });
-        }
-
-        return NextResponse.json(grafanaPayload, { headers: corsHeaders });
-      } catch (err) {
-        if (cachedGrafanaStore[cacheKey]) {
-          const payload = cachedGrafanaStore[cacheKey].data;
-          if (type === "shifts") return NextResponse.json(payload.shifts, { headers: corsHeaders });
-          if (type === "employees") return NextResponse.json(payload.employees, { headers: corsHeaders });
-          return NextResponse.json(payload, { headers: corsHeaders });
-        }
+        const payload = existing.data;
+        if (type === "shifts") return NextResponse.json(payload.shifts, { headers: corsHeaders });
+        if (type === "employees") return NextResponse.json(payload.employees, { headers: corsHeaders });
+        return NextResponse.json(payload, { headers: corsHeaders });
       }
+
+      // Cold start: fetch with 4.5s hard timeout limit
+      const freshData = await fetchStatsWithTimeout(GOOGLE_SCRIPT_URL, filterMode, filterShift);
+      if (freshData) {
+        cachedGrafanaStore[cacheKey] = { time: Date.now(), data: freshData };
+        if (type === "shifts") return NextResponse.json(freshData.shifts, { headers: corsHeaders });
+        if (type === "employees") return NextResponse.json(freshData.employees, { headers: corsHeaders });
+        return NextResponse.json(freshData, { headers: corsHeaders });
+      }
+
+      // Fallback empty payload if Google Apps Script is unreachable/slow on cold start
+      const fallbackPayload = {
+        success: true,
+        metrics: { total_scans: 0, confirmed: 0, missing: 0, overall_accuracy_percent: 100 },
+        employees: [],
+        shifts: [],
+        timeseries: []
+      };
+      if (type === "shifts") return NextResponse.json(fallbackPayload.shifts, { headers: corsHeaders });
+      if (type === "employees") return NextResponse.json(fallbackPayload.employees, { headers: corsHeaders });
+      return NextResponse.json(fallbackPayload, { headers: corsHeaders });
     }
     
     // Auto-wrap raw stats from Google Apps Script if needed
