@@ -30,6 +30,11 @@ function transformStatsToGrafana(rawStats, filterMode, filterShift) {
       Object.keys(dateData).forEach(shiftName => {
         const sLower = shiftName.toLowerCase();
         
+        // Exclude gotovy / ready sheets completely
+        if (sLower.indexOf("готовы") !== -1 || sLower.indexOf("готово") !== -1 || sLower.indexOf("gotov") !== -1) {
+          return;
+        }
+
         // Filter by mode (e.g. izlishka) or shift
         if (filterMode === "izlishka" && sLower.indexOf("излишка") === -1 && sLower.indexOf("izlishka") === -1) {
           return;
