@@ -8,7 +8,7 @@ function doGet(e) {
   
   // If stats action is requested
   if (action === 'stats') {
-    return ContentService.createTextOutput(JSON.stringify(getStats(ss)))
+    return ContentService.createTextOutput(JSON.stringify(getStats(ss, mode)))
       .setMimeType(ContentService.MimeType.JSON);
   }
   
@@ -20,7 +20,7 @@ function doGet(e) {
   
   // If grafana stats action is requested
   if (action === 'grafana') {
-    return ContentService.createTextOutput(JSON.stringify(getGrafanaStats(ss)))
+    return ContentService.createTextOutput(JSON.stringify(getGrafanaStats(ss, mode)))
       .setMimeType(ContentService.MimeType.JSON);
   }
   
@@ -71,12 +71,20 @@ function doGet(e) {
   var sheet = ss.getSheetByName(targetSheetName);
   if (!sheet) {
     var sheets = ss.getSheets();
+    var targetLower = targetSheetName.toLowerCase();
     for (var s = 0; s < sheets.length; s++) {
       var sName = sheets[s].getName().trim().toLowerCase();
-      if (sName === targetSheetName.toLowerCase() || (isSgt && (sName === "сгт" || sName === "sgt" || sName.indexOf("сгт") !== -1))) {
+      if (sName === targetLower || (isSgt && sName.indexOf("сгт") !== -1) || sName.indexOf(targetLower) !== -1 || targetLower.indexOf(sName) !== -1) {
         sheet = sheets[s];
         break;
       }
+    }
+  }
+  if (!sheet) {
+    // Ultimate fallback to first sheet if shift sheet name not found exactly
+    var allSheets = ss.getSheets();
+    if (allSheets.length > 0) {
+      sheet = allSheets[0];
     }
   }
   if (!sheet) {
