@@ -81,15 +81,17 @@ function doGet(e) {
     }
   }
   if (!sheet) {
-    // Ultimate fallback to first sheet if shift sheet name not found exactly
     var allSheets = ss.getSheets();
     if (allSheets.length > 0) {
       sheet = allSheets[0];
     }
   }
   if (!sheet) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Лист '" + targetSheetName + "' не найден" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ 
+      success: true, 
+      uncompletedItems: [],
+      message: "Лист '" + targetSheetName + "' не найден" 
+    })).setMimeType(ContentService.MimeType.JSON);
   }
   
   var userName = e.parameter.userName || "";

@@ -207,34 +207,44 @@ export async function GET(request) {
       return NextResponse.json(fallbackPayload, { headers: corsHeaders });
     }
     
-    // Auto-wrap raw stats from Google Apps Script if needed
-    if (searchParams.get("action") === "stats") {
-      let targetUrl = GOOGLE_SCRIPT_URL;
-      const params = [];
-      searchParams.forEach((value, key) => {
-        params.push(`${key}=${encodeURIComponent(value)}`);
-      });
-      if (params.length > 0) {
-        targetUrl += (targetUrl.includes('?') ? '&' : '?') + params.join('&');
-      }
+    let targetUrl = GOOGLE_SCRIPT_URL;
+    const params = [];
+    searchParams.forEach((value, key) => {
+      params.push(`${key}=${encodeURIComponent(value)}`);
+    });
+    if (params.length > 0) {
+      targetUrl += (targetUrl.includes('?') ? '&' : '?') + params.join('&');
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 9500);
 
       const response = await fetch(targetUrl, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
+        signal: controller.signal,
         cache: 'no-store'
       });
+      clearTimeout(timeoutId);
       const data = await response.json();
       
-      if (data && typeof data === "object" && !data.hasOwnProperty("success")) {
+      if (searchParams.get("action") === "stats" && data && typeof data === "object" && !data.hasOwnProperty("success")) {
         return NextResponse.json({ success: true, stats: data }, { headers: corsHeaders });
       }
+
+      return NextResponse.json(data, { headers: corsHeaders });
+    } catch (fetchErr) {
+      return NextResponse.json({ 
+        success: true, 
+        uncompletedItems: [], 
+        message: "Таблица временно не ответила" 
+      }, { headers: corsHeaders });
     }
-    
-    return NextResponse.json(data, { headers: corsHeaders });
 
   } catch (error) {
     console.error("GET Error:", error);
-    return NextResponse.json({ success: false, error: "Не удалось подключиться к таблице" }, { status: 500 });
+    return NextResponse.json({ success: true, uncompletedItems: [] }, { headers: corsHeaders });
   }
 }
 
