@@ -54,11 +54,14 @@ function transformStatsToGrafana(rawStats) {
 
         if (sData.users && typeof sData.users === "object") {
           Object.keys(sData.users).forEach(userName => {
+            const val = sData.users[userName];
+            const count = typeof val === "number" ? val : (val?.confirmed || val?.total || 0);
             employees.push({
               date: dateStr,
               shift: shiftName,
               employee: userName,
-              scans: typeof sData.users[userName] === "number" ? sData.users[userName] : (sData.users[userName]?.confirmed || sData.users[userName]?.total || 0)
+              sobrano: count,
+              scans: count
             });
           });
         }
