@@ -367,13 +367,9 @@ function getStats(ss) {
         // Ignore date parse errors
       }
       
-      // Fallback: If item has status but timestamp is missing/unparseable, fallback to today's date
+      // If item has status but timestamp is missing/unparseable, skip it (do not dump into today)
       if (!formattedDate) {
-        var now = new Date();
-        var yNow = now.getFullYear();
-        var mNow = ("0" + (now.getMonth() + 1)).slice(-2);
-        var dNow = ("0" + now.getDate()).slice(-2);
-        formattedDate = yNow + "-" + mNow + "-" + dNow;
+        continue;
       }
       
       if (!stats[formattedDate]) {
