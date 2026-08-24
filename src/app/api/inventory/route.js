@@ -44,11 +44,23 @@ export async function GET(request) {
     // Auto-wrap raw stats from Google Apps Script if needed
     if (searchParams.get("action") === "stats") {
       if (data && typeof data === "object" && !data.hasOwnProperty("success")) {
-        return NextResponse.json({ success: true, stats: data });
+        return NextResponse.json({ success: true, stats: data }, {
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          }
+        });
       }
     }
     
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
 
   } catch (error) {
     console.error("GET Error:", error);

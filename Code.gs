@@ -18,6 +18,12 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
   
+  // If grafana stats action is requested
+  if (action === 'grafana') {
+    return ContentService.createTextOutput(JSON.stringify(getGrafanaStats(ss)))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
   // If product detail proxy action is requested (bypasses CORS & WAF)
   if (action === 'product') {
     var id = e.parameter.id;
@@ -613,6 +619,82 @@ function getGotovaStats(ss) {
     success: true,
     monthly: monthlyStats,
     daily: dailyStats
+  };
+}
+
+function getGrafanaStats(ss) {
+  var rawStats = getStats(ss);
+  var employeeList = [];
+  var shiftList = [];
+  var timeSeriesList = [];
+  var grandTotal = 0;
+  var grandConfirmed = 0;
+  var grandMissing = 0;
+
+  var dateKeys = Object.keys(rawStats).sort();
+
+  dateKeys.forEach(function(dateStr) {
+    var dateData = rawStats[dateStr];
+    var dayConfirmed = 0;
+    var dayMissing = 0;
+    var dayTotal = 0;
+
+    Object.keys(dateData).forEach(function(shiftName) {
+      var sData = dateData[shiftName];
+      dayConfirmed += sData.confirmed;
+      dayMissing += sData.missing;
+      dayTotal += sData.total;
+
+      grandConfirmed += sData.confirmed;
+      grandMissing += sData.missing;
+      grandTotal += sData.total;
+
+      var accuracy = sData.total > 0 ? Math.round((sData.confirmed / sData.total) * 100) : 100;
+      shiftList.push({
+        date: dateStr,
+        shift: shiftName,
+        confirmed: sData.confirmed,
+        missing: sData.missing,
+        total: sData.total,
+        accuracy_percent: accuracy
+      });
+
+      if (sData.users) {
+        Object.keys(sData.users).forEach(function(userName) {
+          var count = sData.users[userName];
+          employeeList.push({
+            date: dateStr,
+            shift: shiftName,
+            employee: userName,
+            scans: count
+          });
+        });
+      }
+    });
+
+    var ts = new Date(dateStr).getTime();
+    timeSeriesList.push({
+      timestamp: isNaN(ts) ? Date.now() : ts,
+      date: dateStr,
+      confirmed: dayConfirmed,
+      missing: dayMissing,
+      total: dayTotal
+    });
+  });
+
+  var overallAccuracy = grandTotal > 0 ? Math.round((grandConfirmed / grandTotal) * 100) : 100;
+
+  return {
+    success: true,
+    metrics: {
+      total_scans: grandTotal,
+      confirmed: grandConfirmed,
+      missing: grandMissing,
+      overall_accuracy_percent: overallAccuracy
+    },
+    employees: employeeList,
+    shifts: shiftList,
+    timeseries: timeSeriesList
   };
 }
 
