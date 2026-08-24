@@ -229,8 +229,9 @@ export async function GET(request) {
       clearTimeout(timeoutId);
       const data = await response.json();
       
-      if (searchParams.get("action") === "stats" && data && typeof data === "object" && !data.hasOwnProperty("success")) {
-        return NextResponse.json({ success: true, stats: data }, { headers: corsHeaders });
+      if (searchParams.get("action") === "stats" && data && typeof data === "object") {
+        const statsPayload = data.stats || data;
+        return NextResponse.json({ success: true, stats: statsPayload }, { headers: corsHeaders });
       }
 
       return NextResponse.json(data, { headers: corsHeaders });

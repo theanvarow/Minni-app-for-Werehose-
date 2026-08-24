@@ -391,14 +391,17 @@ export default function Home() {
     try {
       const res = await fetch(`/api/inventory?action=stats&t=${Date.now()}`);
       const data = await res.json();
-      if (data.success) {
-        if (data.stats) {
-          setStatsData(data.stats);
+      if (data) {
+        const statsPayload = data.stats || (data.success ? data.stats : data);
+        if (statsPayload && typeof statsPayload === 'object' && Object.keys(statsPayload).length > 0) {
+          setStatsData(statsPayload);
+        } else if (data.error) {
+          setStatsError(data.error);
         } else {
           setStatsError("Пожалуйста, обновите Google Apps Script до последней версии (внедрите код статистики и сделайте New Version Deployment).");
         }
       } else {
-        setStatsError(data.error || "Не удалось загрузить статистику");
+        setStatsError("Не удалось загрузить статистику");
       }
     } catch (err) {
       setStatsError("Ошибка подключения к серверу");
