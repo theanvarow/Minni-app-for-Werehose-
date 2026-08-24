@@ -387,9 +387,11 @@ function getStats(ss) {
       if (!stats[formattedDate][sheetName]) {
         stats[formattedDate][sheetName] = {
           total: 0,
+          totalQty: 0,
           confirmed: 0,
           confirmedQty: 0,
           missing: 0,
+          missingQty: 0,
           placementCorrect: 0,
           placementIncorrect: 0,
           users: {}
@@ -398,6 +400,7 @@ function getStats(ss) {
       
       var sData = stats[formattedDate][sheetName];
       sData.total += 1;
+      sData.totalQty += itemQty;
       
       var normStatus = status.toLowerCase();
       var isConfirmed = normStatus.indexOf("подтвержд") !== -1 || normStatus.indexOf("собр") !== -1 || normStatus === "да" || normStatus.indexOf("готово") !== -1 || normStatus.indexOf("выполн") !== -1 || normStatus.indexOf("найд") !== -1 || normStatus === "ok";
@@ -408,6 +411,7 @@ function getStats(ss) {
         sData.confirmedQty += itemQty;
       } else if (isMissing) {
         sData.missing += 1;
+        sData.missingQty += itemQty;
       }
       
       var normPlacement = placementCorrect.toLowerCase();
@@ -665,7 +669,9 @@ function getGrafanaStats(ss) {
         confirmed: sData.confirmed,
         kolichestvo: sData.confirmedQty || sData.confirmed,
         missing: sData.missing,
+        missing_kolichestvo: sData.missingQty || sData.missing,
         total: sData.total,
+        total_kolichestvo: sData.totalQty || sData.total,
         accuracy_percent: accuracy
       });
 

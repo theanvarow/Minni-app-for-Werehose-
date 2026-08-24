@@ -48,7 +48,9 @@ function transformStatsToGrafana(rawStats, filterMode, filterShift) {
         const confirmed = sData.confirmed || 0;
         const confirmedQty = sData.confirmedQty || sData.kolichestvo || confirmed;
         const missing = sData.missing || 0;
+        const missingQty = sData.missingQty || sData.missing_kolichestvo || missing;
         const total = sData.total || (confirmed + missing);
+        const totalQty = sData.totalQty || sData.total_kolichestvo || (confirmedQty + missingQty);
 
         dayConfirmed += confirmed;
         dayMissing += missing;
@@ -65,7 +67,9 @@ function transformStatsToGrafana(rawStats, filterMode, filterShift) {
           confirmed,
           kolichestvo: confirmedQty,
           missing,
+          missing_kolichestvo: missingQty,
           total,
+          total_kolichestvo: totalQty,
           accuracy_percent: accuracy
         });
 
