@@ -9,6 +9,88 @@ const IS_SERVER_STOPPED = false;
 
 const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL;
 
+function transformStatsToGrafana(rawStats) {
+  const stats = rawStats.stats || rawStats;
+  const employees = [];
+  const shifts = [];
+  const timeseries = [];
+  let grandTotal = 0;
+  let grandConfirmed = 0;
+  let grandMissing = 0;
+
+  if (stats && typeof stats === "object") {
+    const dates = Object.keys(stats).sort();
+    dates.forEach(dateStr => {
+      const dateData = stats[dateStr];
+      if (!dateData || typeof dateData !== "object") return;
+      let dayConfirmed = 0;
+      let dayMissing = 0;
+      let dayTotal = 0;
+
+      Object.keys(dateData).forEach(shiftName => {
+        const sData = dateData[shiftName];
+        if (!sData) return;
+        const confirmed = sData.confirmed || 0;
+        const missing = sData.missing || 0;
+        const total = sData.total || (confirmed + missing);
+
+        dayConfirmed += confirmed;
+        dayMissing += missing;
+        dayTotal += total;
+
+        grandConfirmed += confirmed;
+        grandMissing += missing;
+        grandTotal += total;
+
+        const accuracy = total > 0 ? Math.round((confirmed / total) * 100) : 100;
+        shifts.push({
+          date: dateStr,
+          shift: shiftName,
+          confirmed,
+          missing,
+          total,
+          accuracy_percent: accuracy
+        });
+
+        if (sData.users && typeof sData.users === "object") {
+          Object.keys(sData.users).forEach(userName => {
+            employees.push({
+              date: dateStr,
+              shift: shiftName,
+              employee: userName,
+              scans: typeof sData.users[userName] === "number" ? sData.users[userName] : (sData.users[userName]?.confirmed || sData.users[userName]?.total || 0)
+            });
+          });
+        }
+      });
+
+      const ts = new Date(dateStr).getTime();
+      timeseries.push({
+        timestamp: isNaN(ts) ? Date.now() : ts,
+        date: dateStr,
+        confirmed: dayConfirmed,
+        missing: dayMissing,
+        total: dayTotal
+      });
+    });
+  }
+
+  const overallAccuracy = grandTotal > 0 ? Math.round((grandConfirmed / grandTotal) * 100) : 100;
+
+  return {
+    success: true,
+    metrics: {
+      total_scans: grandTotal,
+      confirmed: grandConfirmed,
+      missing: grandMissing,
+      overall_accuracy_percent: overallAccuracy
+    },
+    employees,
+    shifts,
+    timeseries
+  };
+}
+
 export async function GET(request) {
   try {
     if (IS_SERVER_STOPPED) {
@@ -41,26 +123,35 @@ export async function GET(request) {
     
     const data = await response.json();
     
-    // Auto-wrap raw stats from Google Apps Script if needed
-    if (searchParams.get("action") === "stats") {
-      if (data && typeof data === "object" && !data.hasOwnProperty("success")) {
-        return NextResponse.json({ success: true, stats: data }, {
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-          }
-        });
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
+
+    // Auto-handle Grafana format with fallback to action=stats transform
+    if (searchParams.get("action") === "grafana") {
+      if (data && data.metrics) {
+        return NextResponse.json(data, { headers: corsHeaders });
+      }
+      try {
+        const statsRes = await fetch(`${GOOGLE_SCRIPT_URL}?action=stats`, { cache: 'no-store' });
+        const rawStats = await statsRes.json();
+        const grafanaPayload = transformStatsToGrafana(rawStats);
+        return NextResponse.json(grafanaPayload, { headers: corsHeaders });
+      } catch (err) {
+        // Return raw data if stats fetch fails
       }
     }
     
-    return NextResponse.json(data, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+    // Auto-wrap raw stats from Google Apps Script if needed
+    if (searchParams.get("action") === "stats") {
+      if (data && typeof data === "object" && !data.hasOwnProperty("success")) {
+        return NextResponse.json({ success: true, stats: data }, { headers: corsHeaders });
       }
-    });
+    }
+    
+    return NextResponse.json(data, { headers: corsHeaders });
 
   } catch (error) {
     console.error("GET Error:", error);
