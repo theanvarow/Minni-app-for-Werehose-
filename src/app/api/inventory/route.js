@@ -9,7 +9,7 @@ const IS_SERVER_STOPPED = false;
 
 const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL;
 
-function transformStatsToGrafana(rawStats) {
+function transformStatsToGrafana(rawStats, filterMode, filterShift) {
   const stats = rawStats.stats || rawStats;
   const employees = [];
   const shifts = [];
@@ -28,6 +28,16 @@ function transformStatsToGrafana(rawStats) {
       let dayTotal = 0;
 
       Object.keys(dateData).forEach(shiftName => {
+        const sLower = shiftName.toLowerCase();
+        
+        // Filter by mode (e.g. izlishka) or shift
+        if (filterMode === "izlishka" && sLower.indexOf("излишка") === -1 && sLower.indexOf("izlishka") === -1) {
+          return;
+        }
+        if (filterShift && sLower.indexOf(filterShift.toLowerCase()) === -1) {
+          return;
+        }
+
         const sData = dateData[shiftName];
         if (!sData) return;
         const confirmed = sData.confirmed || 0;
@@ -67,14 +77,16 @@ function transformStatsToGrafana(rawStats) {
         }
       });
 
-      const ts = new Date(dateStr).getTime();
-      timeseries.push({
-        timestamp: isNaN(ts) ? Date.now() : ts,
-        date: dateStr,
-        confirmed: dayConfirmed,
-        missing: dayMissing,
-        total: dayTotal
-      });
+      if (dayTotal > 0) {
+        const ts = new Date(dateStr).getTime();
+        timeseries.push({
+          timestamp: isNaN(ts) ? Date.now() : ts,
+          date: dateStr,
+          confirmed: dayConfirmed,
+          missing: dayMissing,
+          total: dayTotal
+        });
+      }
     });
   }
 
@@ -105,6 +117,8 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
+    const filterMode = searchParams.get("mode");
+    const filterShift = searchParams.get("shift");
     
     let targetUrl = GOOGLE_SCRIPT_URL;
     const params = [];
@@ -134,16 +148,15 @@ export async function GET(request) {
 
     // Auto-handle Grafana format with fallback to action=stats transform
     if (searchParams.get("action") === "grafana") {
-      if (data && data.metrics) {
-        return NextResponse.json(data, { headers: corsHeaders });
-      }
       try {
         const statsRes = await fetch(`${GOOGLE_SCRIPT_URL}?action=stats`, { cache: 'no-store' });
         const rawStats = await statsRes.json();
-        const grafanaPayload = transformStatsToGrafana(rawStats);
+        const grafanaPayload = transformStatsToGrafana(rawStats, filterMode, filterShift);
         return NextResponse.json(grafanaPayload, { headers: corsHeaders });
       } catch (err) {
-        // Return raw data if stats fetch fails
+        if (data && data.metrics) {
+          return NextResponse.json(data, { headers: corsHeaders });
+        }
       }
     }
     
