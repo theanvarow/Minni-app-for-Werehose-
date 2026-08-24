@@ -216,9 +216,30 @@ export async function GET(request) {
       targetUrl += (targetUrl.includes('?') ? '&' : '?') + params.join('&');
     }
 
+    const isStatsAction = (searchParams.get("action") === "stats");
+    
+    // Serve fast cached stats if available
+    if (isStatsAction && cachedGrafanaStore["raw_stats"] && Object.keys(cachedGrafanaStore["raw_stats"]).length > 0) {
+      // Trigger background update if > 60s old
+      if (!cachedGrafanaStore["raw_stats_time"] || (Date.now() - cachedGrafanaStore["raw_stats_time"] > 60000)) {
+        fetch(`${GOOGLE_SCRIPT_URL}?action=stats`, { cache: 'no-store' })
+          .then(r => r.json())
+          .then(fresh => {
+            if (fresh && typeof fresh === 'object') {
+              const freshPayload = fresh.stats || fresh;
+              if (Object.keys(freshPayload).length > 0) {
+                cachedGrafanaStore["raw_stats"] = freshPayload;
+                cachedGrafanaStore["raw_stats_time"] = Date.now();
+              }
+            }
+          }).catch(() => {});
+      }
+      return NextResponse.json({ success: true, stats: cachedGrafanaStore["raw_stats"] }, { headers: corsHeaders });
+    }
+
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 9500);
+      const timeoutId = setTimeout(() => controller.abort(), isStatsAction ? 15000 : 9500);
 
       const response = await fetch(targetUrl, {
         method: 'GET',
@@ -229,11 +250,12 @@ export async function GET(request) {
       clearTimeout(timeoutId);
       const data = await response.json();
       
-      if (searchParams.get("action") === "stats") {
+      if (isStatsAction) {
         if (data && typeof data === "object") {
           const statsPayload = data.stats || data;
           if (Object.keys(statsPayload).length > 0) {
             cachedGrafanaStore["raw_stats"] = statsPayload;
+            cachedGrafanaStore["raw_stats_time"] = Date.now();
           }
           return NextResponse.json({ success: true, stats: statsPayload }, { headers: corsHeaders });
         }
@@ -241,7 +263,7 @@ export async function GET(request) {
 
       return NextResponse.json(data, { headers: corsHeaders });
     } catch (fetchErr) {
-      if (searchParams.get("action") === "stats") {
+      if (isStatsAction) {
         const fallbackStats = cachedGrafanaStore["raw_stats"] || {};
         return NextResponse.json({ success: true, stats: fallbackStats }, { headers: corsHeaders });
       }

@@ -392,13 +392,15 @@ export default function Home() {
       const res = await fetch(`/api/inventory?action=stats&t=${Date.now()}`);
       const data = await res.json();
       if (data) {
-        const statsPayload = data.stats || (data.success ? data.stats : data);
-        if (statsPayload && typeof statsPayload === 'object' && Object.keys(statsPayload).length > 0) {
-          setStatsData(statsPayload);
-        } else if (data.error) {
+        if (data.error) {
           setStatsError(data.error);
         } else {
-          setStatsError("Пожалуйста, обновите Google Apps Script до последней версии (внедрите код статистики и сделайте New Version Deployment).");
+          const statsPayload = data.stats || (data.success ? data.stats : data);
+          if (statsPayload && typeof statsPayload === 'object') {
+            setStatsData(statsPayload);
+          } else {
+            setStatsError("Не удалось загрузить статистику");
+          }
         }
       } else {
         setStatsError("Не удалось загрузить статистику");
