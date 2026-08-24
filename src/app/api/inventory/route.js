@@ -161,13 +161,24 @@ export async function GET(request) {
 
     // Auto-handle Grafana format with fallback to action=stats transform
     if (searchParams.get("action") === "grafana") {
+      const type = searchParams.get("type");
       try {
         const statsRes = await fetch(`${GOOGLE_SCRIPT_URL}?action=stats`, { cache: 'no-store' });
         const rawStats = await statsRes.json();
         const grafanaPayload = transformStatsToGrafana(rawStats, filterMode, filterShift);
+
+        if (type === "shifts") {
+          return NextResponse.json(grafanaPayload.shifts, { headers: corsHeaders });
+        }
+        if (type === "employees") {
+          return NextResponse.json(grafanaPayload.employees, { headers: corsHeaders });
+        }
+
         return NextResponse.json(grafanaPayload, { headers: corsHeaders });
       } catch (err) {
         if (data && data.metrics) {
+          if (type === "shifts" && data.shifts) return NextResponse.json(data.shifts, { headers: corsHeaders });
+          if (type === "employees" && data.employees) return NextResponse.json(data.employees, { headers: corsHeaders });
           return NextResponse.json(data, { headers: corsHeaders });
         }
       }
