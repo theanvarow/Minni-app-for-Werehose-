@@ -398,6 +398,19 @@ export default function Home() {
           const statsPayload = data.stats || (data.success ? data.stats : data);
           if (statsPayload && typeof statsPayload === 'object') {
             setStatsData(statsPayload);
+            // Auto-refresh background fetch if payload was empty on cold start
+            if (Object.keys(statsPayload).length === 0) {
+              setTimeout(() => {
+                fetch(`/api/inventory?action=stats&t=${Date.now()}`)
+                  .then(r => r.json())
+                  .then(d => {
+                    const fresh = d ? (d.stats || d) : null;
+                    if (fresh && typeof fresh === 'object' && Object.keys(fresh).length > 0) {
+                      setStatsData(fresh);
+                    }
+                  }).catch(() => {});
+              }, 2500);
+            }
           } else {
             setStatsError("Не удалось загрузить статистику");
           }
