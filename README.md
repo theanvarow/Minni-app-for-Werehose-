@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://inventory-checker-nu.vercel.app/">
-    <img src="https://img.shields.io/badge/Live_Demo-inventory--checker--nu.vercel.app-0070F3?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" />
+    <img src="https://img.shields.io/badge/🚀_Live_Demo-inventory--checker--nu.vercel.app-0070F3?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" />
   </a>
   <img src="https://img.shields.io/badge/Next.js-16.2-black?style=for-the-badge&logo=next.js" alt="Next.js" />
   <img src="https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
@@ -13,9 +13,12 @@
 
 ---
 
-## 🌐 Рабочий проект (Live Deployment)
+## 🌐 Рабочий проект (Live Web App)
 
-🔗 **Рабочая ссылка на проект:** [https://inventory-checker-nu.vercel.app/](https://inventory-checker-nu.vercel.app/)
+> ### 🔗 **Прямая ссылка на рабочее веб-приложение:**  
+> 👉 **[https://inventory-checker-nu.vercel.app/](https://inventory-checker-nu.vercel.app/)**  
+> 
+> *Приложение оптимизировано и доступно для работы на смартфонах, ПК и терминалах сбора данных (ТСД / PDA).*
 
 ---
 
