@@ -54,7 +54,7 @@ function doGet(e) {
   }
   
   var floorUpper = String(floor || "").trim().toUpperCase();
-  var isSgt = (floorUpper === "СГТ" || floorUpper === "SGT");
+  var isSgt = (floorUpper === "СГТ" || floorUpper === "SGT" || floorUpper === "CGT" || floorUpper === "CГТ" || floorUpper === "СGT" || floorUpper.indexOf("СГТ") !== -1 || floorUpper.indexOf("SGT") !== -1 || floorUpper.indexOf("CGT") !== -1);
   var targetSheetName = isSgt ? "СГТ" : ((mode === "izlishka") ? "излишка" : sheetName);
   
   if (!targetSheetName || !floor) {
@@ -67,7 +67,7 @@ function doGet(e) {
     var sheets = ss.getSheets();
     for (var s = 0; s < sheets.length; s++) {
       var sName = sheets[s].getName().trim().toLowerCase();
-      if (sName === targetSheetName.toLowerCase() || (isSgt && (sName === "сгт" || sName === "sgt" || sName.indexOf("сгт") !== -1))) {
+      if (sName === targetSheetName.toLowerCase() || (isSgt && (sName === "сгт" || sName === "sgt" || sName === "cgt" || sName.indexOf("сгт") !== -1 || sName.indexOf("sgt") !== -1 || sName.indexOf("cgt") !== -1))) {
         sheet = sheets[s];
         break;
       }
@@ -109,18 +109,20 @@ function doGet(e) {
   }
   
   var totalCount = uncompletedItems.length;
-  
-  // Distribute/stagger items across workers ONLY for izlishka mode
-  // For regular audit mode ("proverka"), maintain strict top-to-bottom spreadsheet row order (1, 2, 3...)
   var orderedItems = [];
-  if (mode === "izlishka" && totalCount > 0) {
-    function getSectionKey(loc) {
+  var cache = CacheService.getScriptCache();
+  var safeSheetKey = encodeURIComponent(targetSheetName).replace(/%/g, "_");
+  
+  if ((mode === "izlishka" || isSgt) && totalCount > 0) {
+    function getAisleKey(loc) {
       if (!loc) return "DEFAULT";
-      var parts = loc.trim().split(/[-_/\s]+/);
+      var clean = String(loc).trim();
+      var parts = clean.split(/[._\-\/\s]+/);
       if (parts.length >= 2) {
-        return parts[0] + "-" + parts[1]; // e.g. "M1-A" or "M1-05"
+        // e.g. "M2.02.10.1.2" -> "M2-02", "M2.03.10.1.2" -> "M2-03"
+        return parts[0].toUpperCase() + "-" + parts[1].toUpperCase();
       }
-      return loc.length >= 4 ? loc.substring(0, 4) : loc;
+      return clean.length >= 4 ? clean.substring(0, 4).toUpperCase() : clean.toUpperCase();
     }
 
     function getUserHash(name) {
@@ -133,64 +135,119 @@ function doGet(e) {
       return Math.abs(h);
     }
 
-    var sectionsMap = {};
-    var sectionKeysList = [];
+    var aislesMap = {};
+    var aisleKeysList = [];
 
     for (var m = 0; m < uncompletedItems.length; m++) {
       var it = uncompletedItems[m];
-      var sKey = getSectionKey(it.location);
-      if (!sectionsMap[sKey]) {
-        sectionsMap[sKey] = [];
-        sectionKeysList.push(sKey);
+      var aKey = getAisleKey(it.location);
+      if (!aislesMap[aKey]) {
+        aislesMap[aKey] = [];
+        aisleKeysList.push(aKey);
       }
-      sectionsMap[sKey].push(it);
+      aislesMap[aKey].push(it);
     }
 
-    var uHash = getUserHash(userName);
+    var assignedAisle = null;
 
-    if (sectionKeysList.length > 1) {
-      var startSecIndex = uHash % sectionKeysList.length;
-      for (var s = 0; s < sectionKeysList.length; s++) {
-        var targetKey = sectionKeysList[(startSecIndex + s) % sectionKeysList.length];
-        var listInSec = sectionsMap[targetKey];
-        for (var j = 0; j < listInSec.length; j++) {
-          orderedItems.push(listInSec[j]);
+    if (userName && aisleKeysList.length > 0) {
+      // 1. Check if user already holds an active locked aisle with uncompleted items
+      for (var a = 0; a < aisleKeysList.length; a++) {
+        var k = aisleKeysList[a];
+        var lockAisleKey = "aisle_lock_" + safeSheetKey + "_" + encodeURIComponent(k).replace(/%/g, "_");
+        var lockedUser = cache.get(lockAisleKey);
+        if (lockedUser === userName && aislesMap[k] && aislesMap[k].length > 0) {
+          assignedAisle = k;
+          break;
+        }
+      }
+
+      // 2. If no current aisle assigned, pick a free unlocked aisle for this user
+      if (!assignedAisle) {
+        var uHash = getUserHash(userName);
+        var startIndex = uHash % aisleKeysList.length;
+        
+        for (var off = 0; off < aisleKeysList.length; off++) {
+          var candidateAisle = aisleKeysList[(startIndex + off) % aisleKeysList.length];
+          var lockAisleKey = "aisle_lock_" + safeSheetKey + "_" + encodeURIComponent(candidateAisle).replace(/%/g, "_");
+          var lockedUser = cache.get(lockAisleKey);
+          
+          if (!lockedUser || lockedUser === userName) {
+            assignedAisle = candidateAisle;
+            // Lock this aisle exclusively for the user (600s = 10 mins)
+            cache.put(lockAisleKey, userName, 600);
+            break;
+          }
+        }
+      } else {
+        // Refresh aisle lock TTL
+        var lockAisleKey = "aisle_lock_" + safeSheetKey + "_" + encodeURIComponent(assignedAisle).replace(/%/g, "_");
+        cache.put(lockAisleKey, userName, 600);
+      }
+    }
+
+    // Put all items from the assigned aisle at the top of the queue for this worker
+    if (assignedAisle && aislesMap[assignedAisle]) {
+      var assignedItems = aislesMap[assignedAisle];
+      for (var i = 0; i < assignedItems.length; i++) {
+        orderedItems.push(assignedItems[i]);
+      }
+      
+      // Followed by other aisles so queue remains continuous
+      for (var a = 0; a < aisleKeysList.length; a++) {
+        var otherKey = aisleKeysList[a];
+        if (otherKey !== assignedAisle) {
+          var otherItems = aislesMap[otherKey];
+          for (var j = 0; j < otherItems.length; j++) {
+            orderedItems.push(otherItems[j]);
+          }
         }
       }
     } else {
-      var offset = (uHash * 7) % totalCount;
-      for (var j = 0; j < totalCount; j++) {
-        orderedItems.push(uncompletedItems[(offset + j) % totalCount]);
+      // Fallback if all aisles occupied or no username
+      var uHash = getUserHash(userName);
+      var startIndex = uHash % (aisleKeysList.length || 1);
+      for (var s = 0; s < aisleKeysList.length; s++) {
+        var targetKey = aisleKeysList[(startIndex + s) % aisleKeysList.length];
+        var listInSec = aislesMap[targetKey];
+        var offsetInSec = (uHash * 3) % listInSec.length;
+        for (var j = 0; j < listInSec.length; j++) {
+          orderedItems.push(listInSec[(offsetInSec + j) % listInSec.length]);
+        }
       }
     }
   } else {
     orderedItems = uncompletedItems;
   }
 
-  var cache = CacheService.getScriptCache();
   var filteredItems = [];
   var limit = 10;
     
-    for (var k = 0; k < orderedItems.length; k++) {
-      var item = orderedItems[k];
-      var lockKey = ("lock_" + targetSheetName + "_" + item.rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
-      var lockUser = cache.get(lockKey);
-      
-      if (lockUser && lockUser !== userName) {
-        // Locked by someone else - skip!
-        continue;
-      }
-      
-      // Lock for the current user
-      if (userName) {
-        cache.put(lockKey, userName, 600); // Lock for 10 minutes to prevent expiration issues
-      }
-      
-      filteredItems.push(item);
-      if (filteredItems.length >= limit) {
-        break;
-      }
+  for (var k = 0; k < orderedItems.length; k++) {
+    var item = orderedItems[k];
+    var lockKey = "lock_" + safeSheetKey + "_" + item.rowIndex;
+    var lockUser = cache.get(lockKey);
+    
+    if (lockUser && lockUser !== userName) {
+      // Locked by another active worker - skip!
+      continue;
     }
+    
+    // Lock for the current user for 5 minutes
+    if (userName) {
+      cache.put(lockKey, userName, 300);
+    }
+    
+    filteredItems.push(item);
+    if (filteredItems.length >= limit) {
+      break;
+    }
+  }
+
+  // Fallback: If all ordered items were locked by other workers, return first available
+  if (filteredItems.length === 0 && orderedItems.length > 0) {
+    filteredItems = orderedItems.slice(0, limit);
+  }
     
     return ContentService.createTextOutput(JSON.stringify({
       success: true,
@@ -205,7 +262,7 @@ function doPost(e) {
     var mode = postData.mode || "proverka";
     var floorParam = postData.floor || "";
     var floorUpper = String(floorParam).trim().toUpperCase();
-    var isSgt = (floorUpper === "СГТ" || floorUpper === "SGT" || String(postData.shift).trim().toUpperCase() === "СГТ");
+    var isSgt = (floorUpper === "СГТ" || floorUpper === "SGT" || floorUpper === "CGT" || floorUpper === "CГТ" || floorUpper === "СGT" || floorUpper.indexOf("СГТ") !== -1 || floorUpper.indexOf("SGT") !== -1 || floorUpper.indexOf("CGT") !== -1 || String(postData.shift).trim().toUpperCase() === "СГТ" || String(postData.shift).trim().toUpperCase() === "SGT" || String(postData.shift).trim().toUpperCase() === "CGT");
     var sheetName = isSgt ? "СГТ" : ((mode === "izlishka") ? "излишка" : postData.shift);
     var rowIndex = parseInt(postData.rowIndex);
     var status = postData.status;
@@ -225,7 +282,7 @@ function doPost(e) {
       var sheets = ss.getSheets();
       for (var s = 0; s < sheets.length; s++) {
         var sName = sheets[s].getName().trim().toLowerCase();
-        if (sName === sheetName.toLowerCase() || (isSgt && (sName === "сгт" || sName === "sgt" || sName.indexOf("сгт") !== -1))) {
+        if (sName === sheetName.toLowerCase() || (isSgt && (sName === "сгт" || sName === "sgt" || sName === "cgt" || sName.indexOf("сгт") !== -1 || sName.indexOf("sgt") !== -1 || sName.indexOf("cgt") !== -1))) {
           sheet = sheets[s];
           break;
         }
@@ -247,7 +304,8 @@ function doPost(e) {
     
     // Clear script cache lock for this row
     try {
-      var lockKey = ("lock_" + sheetName + "_" + rowIndex).replace(/[^a-zA-Z0-9_]/g, "_");
+      var safeSheetKey = encodeURIComponent(sheetName).replace(/%/g, "_");
+      var lockKey = "lock_" + safeSheetKey + "_" + rowIndex;
       CacheService.getScriptCache().remove(lockKey);
     } catch (lockErr) {
       // Ignore cache failures
