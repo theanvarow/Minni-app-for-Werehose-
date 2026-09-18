@@ -519,7 +519,6 @@ function getGotovaStats(ss) {
   if (dateIdx === -1) dateIdx = 9;
   
   var monthlyStats = {};
-  var weeklyStats = {};
   var dailyStats = {};
   
   for (var i = 1; i < data.length; i++) {
@@ -576,49 +575,9 @@ function getGotovaStats(ss) {
     var monthKey = year + "-" + month;
     var dayKey = year + "-" + month + "-" + day;
     
-    // Calculate Monday-to-Sunday weekly key
-    var weekStart = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-    var dayOfWeek = weekStart.getDay(); // 0 is Sunday, 1 is Monday...
-    var diffToMon = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
-    weekStart.setDate(weekStart.getDate() + diffToMon);
-    var wsY = weekStart.getFullYear();
-    var wsM = ("0" + (weekStart.getMonth() + 1)).slice(-2);
-    var wsD = ("0" + weekStart.getDate()).slice(-2);
-    
-    var weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    var weY = weekEnd.getFullYear();
-    var weM = ("0" + (weekEnd.getMonth() + 1)).slice(-2);
-    var weD = ("0" + weekEnd.getDate()).slice(-2);
-    
-    var weekKey = wsY + "-" + wsM + "-" + wsD;
-    var weekLabel = wsD + "." + wsM + " – " + weD + "." + weM;
-    
     // Initialize monthly stats
     if (!monthlyStats[monthKey]) {
       monthlyStats[monthKey] = {
-        total: 0,
-        confirmed: 0,
-        missing: 0,
-        placementCorrect: 0,
-        placementIncorrect: 0,
-        shifts: {
-          "1 смена": { total: 0, confirmed: 0, missing: 0 },
-          "2 смена": { total: 0, confirmed: 0, missing: 0 },
-          "3 смена": { total: 0, confirmed: 0, missing: 0 },
-          "4 смена": { total: 0, confirmed: 0, missing: 0 }
-        },
-        users: {}
-      };
-    }
-    
-    // Initialize weekly stats
-    if (!weeklyStats[weekKey]) {
-      weeklyStats[weekKey] = {
-        label: weekLabel,
-        startDate: wsY + "-" + wsM + "-" + wsD,
-        endDate: weY + "-" + weM + "-" + weD,
-        monthKey: monthKey,
         total: 0,
         confirmed: 0,
         missing: 0,
@@ -660,8 +619,8 @@ function getGotovaStats(ss) {
     var isPlacementOk = normPlacement === "да" || normPlacement === "yes" || normPlacement === "верно";
     var isPlacementBad = normPlacement === "нет" || normPlacement === "no" || normPlacement === "неверно";
 
-    // Update monthly, weekly and daily stats
-    [monthlyStats[monthKey], weeklyStats[weekKey], dailyStats[dayKey]].forEach(function(s) {
+    // Update monthly and daily stats
+    [monthlyStats[monthKey], dailyStats[dayKey]].forEach(function(s) {
       s.total += 1;
       
       if (isConfirmed) {
@@ -711,7 +670,6 @@ function getGotovaStats(ss) {
   return {
     success: true,
     monthly: monthlyStats,
-    weekly: weeklyStats,
     daily: dailyStats
   };
 }
