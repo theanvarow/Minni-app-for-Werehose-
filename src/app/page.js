@@ -39,6 +39,93 @@ const playSound = (type) => {
   }
 };
 
+const computeWeeklyStatsFromDaily = (gotovaData) => {
+  if (!gotovaData) return {};
+  const weeklyMap = {};
+  
+  if (gotovaData.daily && Object.keys(gotovaData.daily).length > 0) {
+    const dayKeys = Object.keys(gotovaData.daily).sort();
+    
+    dayKeys.forEach((dateStr) => {
+      const dayData = gotovaData.daily[dateStr];
+      const parts = dateStr.split("-").map(Number);
+      if (parts.length !== 3) return;
+      
+      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+      const dayOfWeek = d.getDay(); // 0 is Sunday, 1 is Monday...
+      const diffToMon = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
+      const monday = new Date(d);
+      monday.setDate(d.getDate() + diffToMon);
+      
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      
+      const pad = (n) => String(n).padStart(2, "0");
+      const monStr = `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
+      const sunStr = `${sunday.getFullYear()}-${pad(sunday.getMonth() + 1)}-${pad(sunday.getDate())}`;
+      const weekKey = monStr;
+      const label = `${pad(monday.getDate())}.${pad(monday.getMonth() + 1)} – ${pad(sunday.getDate())}.${pad(sunday.getMonth() + 1)}`;
+      
+      if (!weeklyMap[weekKey]) {
+        weeklyMap[weekKey] = {
+          weekKey,
+          label,
+          startDate: monStr,
+          endDate: sunStr,
+          monthKey: `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}`,
+          total: 0,
+          confirmed: 0,
+          missing: 0,
+          placementCorrect: 0,
+          placementIncorrect: 0,
+          days: {},
+          shifts: {
+            "1 смена": { total: 0, confirmed: 0, missing: 0 },
+            "2 смена": { total: 0, confirmed: 0, missing: 0 },
+            "3 смена": { total: 0, confirmed: 0, missing: 0 },
+            "4 смена": { total: 0, confirmed: 0, missing: 0 }
+          },
+          users: {}
+        };
+      }
+      
+      const w = weeklyMap[weekKey];
+      w.total += dayData.total || 0;
+      w.confirmed += dayData.confirmed || 0;
+      w.missing += dayData.missing || 0;
+      w.placementCorrect += dayData.placementCorrect || 0;
+      w.placementIncorrect += dayData.placementIncorrect || 0;
+      w.days[dateStr] = dayData;
+      
+      if (dayData.shifts) {
+        Object.entries(dayData.shifts).forEach(([sName, sVals]) => {
+          if (!w.shifts[sName]) {
+            w.shifts[sName] = { total: 0, confirmed: 0, missing: 0 };
+          }
+          w.shifts[sName].total += sVals.total || 0;
+          w.shifts[sName].confirmed += sVals.confirmed || 0;
+          w.shifts[sName].missing += sVals.missing || 0;
+        });
+      }
+      
+      if (dayData.users) {
+        Object.entries(dayData.users).forEach(([uName, uVals]) => {
+          if (!w.users[uName]) {
+            w.users[uName] = { total: 0, confirmed: 0, missing: 0 };
+          }
+          w.users[uName].total += uVals.total || 0;
+          w.users[uName].confirmed += uVals.confirmed || 0;
+          w.users[uName].missing += uVals.missing || 0;
+        });
+      }
+    });
+  } else if (gotovaData.weekly) {
+    return gotovaData.weekly;
+  }
+  
+  return weeklyMap;
+};
+
 export default function Home() {
   const [itemQueue, setItemQueue] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +156,10 @@ export default function Home() {
   const [loadingGotovaStats, setLoadingGotovaStats] = useState(false);
   const [gotovaStatsError, setGotovaStatsError] = useState("");
   const [selectedGotovaMonth, setSelectedGotovaMonth] = useState("");
+
+  // 'готова' Weekly Statistics states
+  const [showWeeklyStats, setShowWeeklyStats] = useState(false);
+  const [selectedWeeklyGotovaWeek, setSelectedWeeklyGotovaWeek] = useState("");
 
 
 
@@ -418,6 +509,11 @@ export default function Home() {
         if (data.monthly && Object.keys(data.monthly).length > 0) {
           const sortedMonths = Object.keys(data.monthly).sort((a, b) => b.localeCompare(a));
           setSelectedGotovaMonth(sortedMonths[0]);
+        }
+        const weeklyMap = computeWeeklyStatsFromDaily(data);
+        const wKeys = Object.keys(weeklyMap).sort((a, b) => b.localeCompare(a));
+        if (wKeys.length > 0) {
+          setSelectedWeeklyGotovaWeek(wKeys[0]);
         }
       } else {
         setGotovaStatsError(data.error || "Не удалось загрузить аналитику");
@@ -1009,6 +1105,518 @@ export default function Home() {
     );
   };
 
+  const renderWeeklyGotovaStatsModal = () => {
+    if (!showWeeklyStats) return null;
+
+    const weeklyStatsMap = computeWeeklyStatsFromDaily(gotovaStatsData);
+    const allWeekKeys = Object.keys(weeklyStatsMap).sort((a, b) => b.localeCompare(a));
+    const activeWeekKey = selectedWeeklyGotovaWeek && weeklyStatsMap[selectedWeeklyGotovaWeek]
+      ? selectedWeeklyGotovaWeek
+      : (allWeekKeys.length > 0 ? allWeekKeys[0] : "");
+    const activeWeekData = activeWeekKey ? weeklyStatsMap[activeWeekKey] : null;
+
+    return (
+      <div className="fixed inset-0 bg-neutral-950/85 backdrop-blur-md z-[9999] flex items-center justify-center p-2 sm:p-4 overflow-y-auto font-sans">
+        <div className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-2xl flex flex-col max-h-[96vh] overflow-hidden text-left">
+          {/* Header */}
+          <div className="flex justify-between items-center border-b border-neutral-800 pb-2.5 mb-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xl sm:text-2xl">📆</span>
+              <div>
+                <h2 className="text-sm sm:text-base font-black text-white leading-none">Недельная Аналитика (Haftalik)</h2>
+                <p className="text-[10px] text-neutral-400 mt-1">Статистика по неделям из листа &apos;Готовы&apos;</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowWeeklyStats(false);
+                playSound("click");
+              }}
+              className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition active:scale-95"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Week Selector Filter */}
+          {!loadingGotovaStats && !gotovaStatsError && allWeekKeys.length > 0 && (
+            <div className="mb-3 bg-neutral-800/30 border border-neutral-800/80 p-2.5 rounded-xl flex items-center justify-between gap-3 shrink-0 text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className="text-neutral-400 font-semibold">Выберите неделю:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={activeWeekKey}
+                  onChange={(e) => {
+                    setSelectedWeeklyGotovaWeek(e.target.value);
+                    playSound("click");
+                  }}
+                  className="bg-neutral-850 border border-neutral-700 rounded-lg px-2.5 py-1 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-[10px] cursor-pointer"
+                >
+                  {allWeekKeys.map((wKey) => {
+                    const wItem = weeklyStatsMap[wKey];
+                    return (
+                      <option key={wKey} value={wKey}>
+                        {wItem.label} ({wItem.total} SKU)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto pr-1 min-h-0">
+            {loadingGotovaStats && (
+              <div className="py-16 flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-emerald-500 mb-2"></div>
+                <p className="text-xs text-neutral-400 font-medium animate-pulse">Загрузка недельных данных из листа &apos;Готовы&apos;...</p>
+              </div>
+            )}
+
+            {gotovaStatsError && (
+              <div className="py-12 text-center">
+                <p className="text-red-400 font-bold text-xs mb-3">⚠️ {gotovaStatsError}</p>
+                <button
+                  onClick={fetchGotovaStats}
+                  className="px-3.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-[10px] font-bold rounded-lg transition"
+                >
+                  Повторить попытку
+                </button>
+              </div>
+            )}
+
+            {!loadingGotovaStats && !gotovaStatsError && !activeWeekData && (
+              <div className="py-16 text-center text-neutral-500 text-xs">
+                Нет данных о готовых отчетах по неделям в листе &apos;Готовы&apos;.
+              </div>
+            )}
+
+            {!loadingGotovaStats && !gotovaStatsError && activeWeekData && (
+              <div className="flex flex-col gap-4">
+                {/* Metric cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 md:gap-3 shrink-0">
+                  {/* Card 1: Total */}
+                  <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-2.5 flex flex-col justify-between col-span-2 sm:col-span-1">
+                    <span className="text-[9px] text-purple-400 font-black uppercase tracking-wider">Объем недели</span>
+                    <span className="text-xl md:text-2xl font-black text-white mt-1 leading-none">
+                      {activeWeekData.total}
+                    </span>
+                    <span className="text-[8px] text-neutral-400 mt-1">Всего SKU ({activeWeekData.label})</span>
+                  </div>
+
+                  {/* Card 2: Confirmed */}
+                  <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-2.5 flex flex-col justify-between">
+                    <span className="text-[9px] text-emerald-400 font-black uppercase tracking-wider">Найденные</span>
+                    <span className="text-xl md:text-2xl font-black text-emerald-400 mt-1 leading-none">
+                      {activeWeekData.confirmed}
+                    </span>
+                    <span className="text-[8px] text-neutral-400 mt-1">
+                      {activeWeekData.total > 0 ? Math.round((activeWeekData.confirmed / activeWeekData.total) * 100) : 0}% найдено
+                    </span>
+                  </div>
+
+                  {/* Card 3: Missing */}
+                  <div className="bg-red-950/20 border border-red-500/20 rounded-xl p-2.5 flex flex-col justify-between">
+                    <span className="text-[9px] text-red-400 font-black uppercase tracking-wider">Не найденные</span>
+                    <span className="text-xl md:text-2xl font-black text-red-400 mt-1 leading-none">
+                      {activeWeekData.missing}
+                    </span>
+                    <span className="text-[8px] text-neutral-400 mt-1">
+                      {activeWeekData.total > 0 ? Math.round((activeWeekData.missing / activeWeekData.total) * 100) : 0}% не найдено
+                    </span>
+                  </div>
+
+                  {/* Card 4: Placement accuracy */}
+                  <div className="bg-blue-950/20 border border-blue-500/20 rounded-xl p-2.5 flex flex-col justify-between">
+                    <span className="text-[9px] text-blue-400 font-black uppercase tracking-wider">Верно размещено</span>
+                    <span className="text-xl md:text-2xl font-black text-blue-400 mt-1 leading-none">
+                      {activeWeekData.placementCorrect}
+                    </span>
+                    <span className="text-[8px] text-neutral-400 mt-1">
+                      {activeWeekData.confirmed > 0 ? Math.round((activeWeekData.placementCorrect / activeWeekData.confirmed) * 100) : 0}% точность полки
+                    </span>
+                  </div>
+
+                  {/* Card 5: Placement incorrect */}
+                  <div className="bg-amber-950/20 border border-amber-500/20 rounded-xl p-2.5 flex flex-col justify-between">
+                    <span className="text-[9px] text-amber-400 font-black uppercase tracking-wider">Неверно размещено</span>
+                    <span className="text-xl md:text-2xl font-black text-amber-400 mt-1 leading-none">
+                      {activeWeekData.placementIncorrect || 0}
+                    </span>
+                    <span className="text-[8px] text-neutral-400 mt-1">
+                      {activeWeekData.confirmed > 0 ? Math.round(((activeWeekData.placementIncorrect || 0) / activeWeekData.confirmed) * 100) : 0}% от найденных
+                    </span>
+                  </div>
+                </div>
+
+                {/* Weekly Comparison Chart (SVG) */}
+                <div className="bg-neutral-850 border border-neutral-800 rounded-xl p-3 flex flex-col">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>📊</span>
+                      <span>Сравнение недель (Haftalararo taqqoslash)</span>
+                    </h4>
+                    <span className="text-[9px] text-neutral-500">Нажмите на столбец для выбора недели</span>
+                  </div>
+
+                  <div className="flex items-center justify-center min-h-[140px] overflow-x-auto py-1">
+                    {(() => {
+                      const maxWeekVal = Math.max(...allWeekKeys.map(k => weeklyStatsMap[k].total), 1);
+                      const svgWidth = Math.max(280, allWeekKeys.length * 90);
+                      const svgHeight = 135;
+                      const chartBottom = 105;
+                      const chartHeight = 80;
+                      const spacing = svgWidth / (allWeekKeys.length + 1);
+
+                      return (
+                        <svg className="w-full max-h-[145px]" viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
+                          {/* Grid lines */}
+                          {[0.33, 0.66, 1].map((ratio, idx) => {
+                            const y = chartBottom - ratio * chartHeight;
+                            const val = Math.round(ratio * maxWeekVal);
+                            return (
+                              <g key={idx}>
+                                <line x1="35" y1={y} x2={svgWidth - 10} y2={y} stroke="#262626" strokeWidth="1" strokeDasharray="3 3" />
+                                <text x="30" y={y + 3} textAnchor="end" fill="#525252" className="text-[8px] font-mono">{val}</text>
+                              </g>
+                            );
+                          })}
+
+                          <line x1="35" y1={chartBottom} x2={svgWidth - 10} y2={chartBottom} stroke="#404040" strokeWidth="1" />
+
+                          {allWeekKeys.map((wKey, idx) => {
+                            const wItem = weeklyStatsMap[wKey];
+                            const total = wItem.total || 0;
+                            const confirmed = wItem.confirmed || 0;
+                            const isSelected = wKey === activeWeekKey;
+                            const barX = 35 + (idx + 0.5) * spacing;
+                            const barW = Math.min(32, spacing * 0.55);
+
+                            const hTotal = (total / maxWeekVal) * chartHeight;
+                            const yTotal = chartBottom - hTotal;
+
+                            const hConf = (confirmed / maxWeekVal) * chartHeight;
+                            const yConf = chartBottom - hConf;
+
+                            return (
+                              <g
+                                key={wKey}
+                                className="cursor-pointer group"
+                                onClick={() => {
+                                  setSelectedWeeklyGotovaWeek(wKey);
+                                  playSound("click");
+                                }}
+                              >
+                                {/* Background hover highlight */}
+                                <rect
+                                  x={barX - barW/2 - 4}
+                                  y={10}
+                                  width={barW + 8}
+                                  height={chartBottom + 20}
+                                  fill={isSelected ? "rgba(16, 185, 129, 0.12)" : "transparent"}
+                                  rx="6"
+                                  className="transition-colors group-hover:fill-emerald-500/10"
+                                />
+
+                                {/* Total bar */}
+                                <rect
+                                  x={barX - barW/2}
+                                  y={yTotal}
+                                  width={barW}
+                                  height={hTotal}
+                                  fill={isSelected ? "#059669" : "#4f46e5"}
+                                  rx="3"
+                                  className="opacity-80 transition-all"
+                                />
+                                {/* Confirmed bar */}
+                                <rect
+                                  x={barX - barW/2 + 2}
+                                  y={yConf}
+                                  width={barW - 4}
+                                  height={hConf}
+                                  fill="#10b981"
+                                  rx="2"
+                                  className="opacity-95"
+                                />
+
+                                <text x={barX} y={yTotal - 4} textAnchor="middle" fill={isSelected ? "#6ee7b7" : "#a3a3a3"} className="text-[9px] font-bold font-mono">
+                                  {total}
+                                </text>
+                                <text x={barX} y={chartBottom + 12} textAnchor="middle" fill={isSelected ? "#a7f3d0" : "#d4d4d4"} className={`text-[8px] ${isSelected ? "font-black" : "font-semibold"}`}>
+                                  {wItem.label}
+                                </text>
+                              </g>
+                            );
+                          })}
+                        </svg>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Day-of-week distribution in the active week */}
+                <div className="bg-neutral-850 border border-neutral-800 rounded-xl p-3 flex flex-col">
+                  <h4 className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <span>📅</span>
+                    <span>Дни недели ({activeWeekData.label})</span>
+                  </h4>
+
+                  {(() => {
+                    const dayNamesRu = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+                    const weekDaysList = [];
+                    const parts = activeWeekData.startDate.split("-").map(Number);
+                    const startD = new Date(parts[0], parts[1] - 1, parts[2]);
+
+                    for (let i = 0; i < 7; i++) {
+                      const currentD = new Date(startD);
+                      currentD.setDate(startD.getDate() + i);
+                      const pad = (n) => String(n).padStart(2, "0");
+                      const dStr = `${currentD.getFullYear()}-${pad(currentD.getMonth() + 1)}-${pad(currentD.getDate())}`;
+                      const dayStats = activeWeekData.days ? activeWeekData.days[dStr] : null;
+                      weekDaysList.push({
+                        dayNameRu: dayNamesRu[i],
+                        dateStr: dStr,
+                        displayDate: `${pad(currentD.getDate())}.${pad(currentD.getMonth() + 1)}`,
+                        stats: dayStats
+                      });
+                    }
+
+                    return (
+                      <div className="grid grid-cols-7 gap-1.5">
+                        {weekDaysList.map((item, idx) => {
+                          const hasData = item.stats && item.stats.total > 0;
+                          return (
+                            <div
+                              key={idx}
+                              className={`rounded-lg p-1.5 flex flex-col items-center justify-between border transition-all ${
+                                hasData
+                                  ? "bg-emerald-950/20 border-emerald-500/30 text-white"
+                                  : "bg-neutral-900/40 border-neutral-800/60 text-neutral-500"
+                              }`}
+                            >
+                              <span className="text-[9px] font-black uppercase">{item.dayNameRu}</span>
+                              <span className="text-[8px] font-mono text-neutral-400">{item.displayDate}</span>
+                              <div className="mt-1 flex flex-col items-center">
+                                <span className={`text-xs font-black font-mono ${hasData ? "text-emerald-300" : "text-neutral-600"}`}>
+                                  {hasData ? item.stats.total : "—"}
+                                </span>
+                                {hasData && (
+                                  <span className="text-[7px] text-emerald-400 font-bold font-mono">
+                                    {item.stats.confirmed} ✓
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Shifts section for the selected week */}
+                <div className="bg-neutral-850 border border-neutral-800 rounded-xl p-3 flex flex-col">
+                  <h4 className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider mb-2">
+                    📊 Статистика по сменам за неделю ({activeWeekData.label})
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                    {/* Left: SVG Bar Chart for shifts */}
+                    <div className="flex items-center justify-center min-h-[140px]">
+                      {(() => {
+                        const shiftData = activeWeekData.shifts || {};
+                        const shiftKeys = ["1 смена", "2 смена", "3 смена", "4 смена"];
+                        const maxShiftVal = Math.max(...shiftKeys.map(s => (shiftData[s] ? shiftData[s].total : 0)), 1);
+                        const svgWidth = 280;
+                        const svgHeight = 130;
+                        const chartBottom = 105;
+                        const chartHeight = 80;
+                        const spacing = svgWidth / (shiftKeys.length + 1);
+
+                        return (
+                          <svg className="w-full h-full max-h-[140px]" viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
+                            {/* Grid lines */}
+                            {[0.33, 0.66, 1].map((ratio, idx) => {
+                              const y = chartBottom - ratio * chartHeight;
+                              const val = Math.round(ratio * maxShiftVal);
+                              return (
+                                <g key={idx}>
+                                  <line x1="30" y1={y} x2={svgWidth - 10} y2={y} stroke="#262626" strokeWidth="1" strokeDasharray="3 3" />
+                                  <text x="25" y={y + 3} textAnchor="end" fill="#525252" className="text-[8px] font-mono">{val}</text>
+                                </g>
+                              );
+                            })}
+
+                            <line x1="30" y1={chartBottom} x2={svgWidth - 10} y2={chartBottom} stroke="#404040" strokeWidth="1" />
+
+                            {shiftKeys.map((sName, idx) => {
+                              const sStats = shiftData[sName] || { total: 0, confirmed: 0, missing: 0 };
+                              const total = sStats.total || 0;
+                              const confirmed = sStats.confirmed || 0;
+                              const barX = 30 + (idx + 0.5) * spacing;
+                              const barW = 20;
+
+                              const hTotal = (total / maxShiftVal) * chartHeight;
+                              const yTotal = chartBottom - hTotal;
+                              
+                              const hConf = (confirmed / maxShiftVal) * chartHeight;
+                              const yConf = chartBottom - hConf;
+
+                              return (
+                                <g key={idx}>
+                                  <rect x={barX - barW/2} y={yTotal} width={barW} height={hTotal} fill="#4f46e5" rx="2" className="opacity-80" />
+                                  <rect x={barX - barW/2 + 1.5} y={yConf} width={barW - 3} height={hConf} fill="#10b981" rx="1.5" className="opacity-95" />
+
+                                  <text x={barX} y={yTotal - 3} textAnchor="middle" fill="#a3a3a3" className="text-[8px] font-bold font-mono">{total}</text>
+                                  <text x={barX} y={chartBottom + 12} textAnchor="middle" fill="#d4d4d4" className="text-[9px] font-extrabold">{sName.replace(" смена", " см.")}</text>
+                                </g>
+                              );
+                            })}
+                          </svg>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Right: Detailed Table */}
+                    <div>
+                      {(() => {
+                        const shiftData = activeWeekData.shifts || {};
+                        const shiftKeys = ["1 смена", "2 смена", "3 смена", "4 смена"];
+
+                        return (
+                          <table className="w-full text-[10px] text-neutral-300 border-collapse">
+                            <thead>
+                              <tr className="border-b border-neutral-800 text-left text-neutral-500 uppercase tracking-wider">
+                                <th className="pb-1.5 font-black">Смена</th>
+                                <th className="pb-1.5 font-black text-center">Всего SKU</th>
+                                <th className="pb-1.5 font-black text-center text-emerald-400">Найдено</th>
+                                <th className="pb-1.5 font-black text-center text-red-400">Не найдено</th>
+                                <th className="pb-1.5 font-black text-center text-emerald-400">Доля</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {shiftKeys.map((sName) => {
+                                const sStats = shiftData[sName] || { total: 0, confirmed: 0, missing: 0 };
+                                const share = activeWeekData.total > 0 ? Math.round((sStats.total / activeWeekData.total) * 100) : 0;
+                                return (
+                                  <tr key={sName} className="border-b border-neutral-800/40 hover:bg-neutral-800/10">
+                                    <td className="py-1.5 font-bold text-white">{sName}</td>
+                                    <td className="py-1.5 text-center font-mono font-bold">{sStats.total}</td>
+                                    <td className="py-1.5 text-center text-emerald-400 font-mono font-bold">{sStats.confirmed}</td>
+                                    <td className="py-1.5 text-center text-red-400 font-mono font-bold">{sStats.missing || (sStats.total - sStats.confirmed)}</td>
+                                    <td className="py-1.5 text-center text-emerald-400 font-mono font-bold">{share}%</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* All Weeks Comparison Table */}
+                {allWeekKeys.length > 1 && (
+                  <div className="bg-neutral-850 border border-neutral-800 rounded-xl p-3 flex flex-col">
+                    <h4 className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider mb-2">
+                      📋 Сводная таблица по всем неделям
+                    </h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[10px] text-neutral-300 border-collapse">
+                        <thead>
+                          <tr className="border-b border-neutral-800 text-left text-neutral-500 uppercase tracking-wider">
+                            <th className="pb-1.5 font-black">Неделя</th>
+                            <th className="pb-1.5 font-black text-center">Всего SKU</th>
+                            <th className="pb-1.5 font-black text-center text-emerald-400">Найдено</th>
+                            <th className="pb-1.5 font-black text-center text-red-400">Не найдено</th>
+                            <th className="pb-1.5 font-black text-center text-blue-400">Точность полки</th>
+                            <th className="pb-1.5 font-black text-right">Действие</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allWeekKeys.map((wKey) => {
+                            const wItem = weeklyStatsMap[wKey];
+                            const isCurrent = wKey === activeWeekKey;
+                            const confRate = wItem.total > 0 ? Math.round((wItem.confirmed / wItem.total) * 100) : 0;
+                            const missRate = wItem.total > 0 ? Math.round((wItem.missing / wItem.total) * 100) : 0;
+                            const accRate = wItem.confirmed > 0 ? Math.round((wItem.placementCorrect / wItem.confirmed) * 100) : 0;
+
+                            return (
+                              <tr
+                                key={wKey}
+                                onClick={() => {
+                                  setSelectedWeeklyGotovaWeek(wKey);
+                                  playSound("click");
+                                }}
+                                className={`border-b border-neutral-800/40 cursor-pointer transition ${
+                                  isCurrent ? "bg-emerald-950/30" : "hover:bg-neutral-800/20"
+                                }`}
+                              >
+                                <td className="py-2 font-bold text-white flex items-center gap-1.5">
+                                  {isCurrent && <span className="text-emerald-400">●</span>}
+                                  <span>{wItem.label}</span>
+                                </td>
+                                <td className="py-2 text-center font-mono font-bold">{wItem.total}</td>
+                                <td className="py-2 text-center text-emerald-400 font-mono font-bold">
+                                  {wItem.confirmed} ({confRate}%)
+                                </td>
+                                <td className="py-2 text-center text-red-400 font-mono font-bold">
+                                  {wItem.missing} ({missRate}%)
+                                </td>
+                                <td className="py-2 text-center text-blue-400 font-mono font-bold">
+                                  {accRate}%
+                                </td>
+                                <td className="py-2 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedWeeklyGotovaWeek(wKey);
+                                      playSound("click");
+                                    }}
+                                    className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                      isCurrent
+                                        ? "bg-emerald-600 text-white"
+                                        : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
+                                    }`}
+                                  >
+                                    {isCurrent ? "Выбрано" : "Открыть"}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer close */}
+          <div className="mt-3 border-t border-neutral-800 pt-2.5 flex justify-end shrink-0">
+            <button
+              onClick={() => {
+                setShowWeeklyStats(false);
+                playSound("click");
+              }}
+              className="px-4 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg text-[10px] font-bold transition active:scale-95"
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
 
   const renderOrientationOverlay = () => {
@@ -1076,7 +1684,7 @@ export default function Home() {
             </form>
             
             {/* Statistics buttons */}
-            <div className="mt-4 pt-3 border-t border-neutral-700 flex justify-center gap-3.5 items-center">
+            <div className="mt-4 pt-3 border-t border-neutral-700 flex flex-wrap justify-center gap-2.5 sm:gap-3 items-center">
               <button
                 type="button"
                 onClick={() => {
@@ -1100,12 +1708,25 @@ export default function Home() {
               >
                 📈 Аналитика (Готова)
               </button>
+              <span className="text-neutral-600">|</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWeeklyStats(true);
+                  fetchGotovaStats();
+                  playSound("click");
+                }}
+                className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-all active:scale-95"
+              >
+                📆 Недельная аналитика
+              </button>
             </div>
           </div>
         </div>
         {renderOrientationOverlay()}
         {renderStatsModal()}
         {renderGotovaStatsModal()}
+        {renderWeeklyGotovaStatsModal()}
       </>
     );
   }
@@ -1177,7 +1798,7 @@ export default function Home() {
             </div>
 
             {/* Statistics buttons */}
-            <div className="mt-4 pt-3 border-t border-neutral-700 flex justify-center gap-3.5 items-center">
+            <div className="mt-4 pt-3 border-t border-neutral-700 flex flex-wrap justify-center gap-2.5 sm:gap-3 items-center">
               <button
                 type="button"
                 onClick={() => {
@@ -1201,6 +1822,18 @@ export default function Home() {
               >
                 📈 Аналитика (Готова)
               </button>
+              <span className="text-neutral-600">|</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWeeklyStats(true);
+                  fetchGotovaStats();
+                  playSound("click");
+                }}
+                className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-all active:scale-95"
+              >
+                📆 Недельная аналитика
+              </button>
             </div>
 
           </div>
@@ -1208,6 +1841,7 @@ export default function Home() {
         {renderOrientationOverlay()}
         {renderStatsModal()}
         {renderGotovaStatsModal()}
+        {renderWeeklyGotovaStatsModal()}
       </>
     );
   }
@@ -1302,6 +1936,7 @@ export default function Home() {
         {renderOrientationOverlay()}
         {renderStatsModal()}
         {renderGotovaStatsModal()}
+        {renderWeeklyGotovaStatsModal()}
       </>
     );
   }
@@ -1636,6 +2271,7 @@ export default function Home() {
       {renderOrientationOverlay()}
       {renderStatsModal()}
       {renderGotovaStatsModal()}
+      {renderWeeklyGotovaStatsModal()}
     </>
   );
 }
