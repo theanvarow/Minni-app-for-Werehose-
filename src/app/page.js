@@ -336,10 +336,13 @@ export default function Home() {
 
       if (storedMode) {
         setActiveMode(storedMode);
-        if (storedFloor) {
+        if (storedFloor && !(storedMode === "proverka" && storedFloor === "СГТ")) {
           setSelectedFloor(storedFloor);
           fetchItems(false, storedFloor, storedShift || "", storedMode);
         } else {
+          if (storedMode === "proverka" && storedFloor === "СГТ") {
+            localStorage.removeItem("selectedFloor");
+          }
           setLoading(false); // Show floor selection screen
         }
       } else {
@@ -1668,7 +1671,10 @@ export default function Home() {
 
             {/* Floor selector buttons */}
             <div className="grid grid-cols-3 gap-3">
-              {["M1", "M2", "M3", "M4", "M5", "СГТ"].map((floorVal) => (
+              {(activeMode === "proverka"
+                ? ["M1", "M2", "M3", "M4", "M5"]
+                : ["M1", "M2", "M3", "M4", "M5", "СГТ"]
+              ).map((floorVal) => (
                 <button
                   key={floorVal}
                   onClick={() => {
