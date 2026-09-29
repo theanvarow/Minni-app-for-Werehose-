@@ -48,7 +48,7 @@ export async function GET(request) {
       }
     }
     
-    if (searchParams.get("demo") === "true" || (data && data.success && (!data.items || data.items.length === 0) && !data.item && searchParams.get("floor") === "M1")) {
+    if (searchParams.get("demo") === "true") {
       return NextResponse.json({
         success: true,
         totalCount: 93,
